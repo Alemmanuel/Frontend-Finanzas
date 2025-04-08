@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Control de Finanzas</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Chart.js y dependencias -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/moment"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-moment"></script>
+
+    <!-- Excel -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+
+    <style>
+      /* Estilos para el modal */
+      .modal {
+        display: none;
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        overflow: auto;
+        background-color: rgba(0, 0, 0, 0.5);
+      }
+
+      /* Modal Content/Box */
+      .modal-content {
+        background-color: #fefefe;
+        margin: 10% auto;
+        padding: 2rem;
+        border-radius: 1rem;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        width: 90%;
+        max-width: 360px;
+        position: relative;
+      }
+
+      .modal-content h3 {
+        font-size: 1.25rem;
+        font-weight: 600;
+        margin-bottom: 1rem;
+        padding-right: 1.5rem;
+      }
+
+      .modal-content p {
+        margin-bottom: 1.5rem;
+        color: #4b5563;
+      }
+
+      /* Close Button */
+      .close {
+        color: #9ca3af;
+        position: absolute;
+        right: 1.25rem;
+        top: 1.25rem;
+        font-size: 1.5rem;
+        font-weight: bold;
+        cursor: pointer;
+        transition: color 0.2s;
+      }
+
+      .close:hover {
+        color: #1f2937;
+      }
+
+      /* Botones del modal */
+      .modal-buttons {
+        display: flex;
+        gap: 1rem;
+        justify-content: flex-end;
+        margin-top: 2rem;
+      }
+
+      .btn-confirm {
+        background-color: #10b981;
+        color: white;
+        padding: 0.5rem 1rem;
+        border-radius: 0.5rem;
+        transition: background-color 0.2s;
+      }
+
+      .btn-confirm:hover {
+        background-color: #059669;
+      }
+
+      .btn-delete {
+        background-color: #ef4444;
+        color: white;
+        padding: 0.5rem 1rem;
+        border-radius: 0.5rem;
+        transition: background-color 0.2s;
+      }
+
+      .btn-delete:hover {
+        background-color: #dc2626;
+      }
+
+      .btn-cancel {
+        background-color: #e5e7eb;
+        color: #374151;
+        padding: 0.5rem 1rem;
+        border-radius: 0.5rem;
+        transition: background-color 0.2s;
+      }
+
+      .btn-cancel:hover {
+        background-color: #d1d5db;
+      }
+    </style>
+  </head>
+  <body class="bg-gray-100">
+    <div class="container mx-auto px-4 py-8">
+      <!-- Botón de importación -->
+      
+
+      <!-- Formulario de registro -->
+      <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+        <h2 class="text-2xl font-bold mb-4">Registrar Transacción</h2>
+        <form id="transactionForm" class="space-y-4">
+          <div>
+            <label class="block mb-1">Tipo:</label>
+            <select id="type" class="w-full p-2 border rounded">
+              <option value="income">Ingreso</option>
+              <option value="expense">Gasto</option>
+            </select>
+          </div>
+          <div>
+            <label class="block mb-1">Monto:</label>
+            <input
+              type="number"
+              id="amount"
+              class="w-full p-2 border rounded"
+              required
+            />
+          </div>
+          <div>
+            <label class="block mb-1">Descripción:</label>
+            <input
+              type="text"
+              id="description"
+              class="w-full p-2 border rounded"
+              required
+            />
+          </div>
+          <button
+            type="submit"
+            class="w-full bg-blue-500 text-white py-2 rounded hover:bg-blue-600"
+          >
+            Registrar
+          </button>
+        </form>
+      </div>
+
+      <!-- Nueva sección de filtros -->
+      <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-xl font-bold">Filtros de Visualización</h3>
+          <button
+            id="applyFilter"
+            class="bg-blue-500 text-white px-6 py-2 rounded hover:bg-blue-600"
+          >
+            Aplicar Filtro
+          </button>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div>
+            <label class="block text-sm font-medium mb-2">Tipo de Filtro</label>
+            <select id="filterType" class="w-full p-2 border rounded">
+              <option value="all">Todo</option>
+              <option value="day">Por Día</option>
+              <option value="week">Por Semana</option>
+              <option value="month">Por Mes</option>
+              <option value="custom">Personalizado</option>
+            </select>
+          </div>
+
+          <div id="dayFilter" class="hidden">
+            <label class="block text-sm font-medium mb-2"
+              >Seleccionar Día</label
+            >
+            <input
+              type="date"
+              id="filterDate"
+              class="w-full p-2 border rounded"
+            />
+          </div>
+
+          <div id="weekFilter" class="hidden">
+            <label class="block text-sm font-medium mb-2"
+              >Seleccionar Semana</label
+            >
+            <select id="filterWeek" class="w-full p-2 border rounded">
+              <!-- Se llenará dinámicamente -->
+            </select>
+          </div>
+
+          <div id="monthFilter" class="hidden">
+            <label class="block text-sm font-medium mb-2"
+              >Seleccionar Mes</label
+            >
+            <select id="filterMonth" class="w-full p-2 border rounded">
+              <option value="0">Enero</option>
+              <option value="1">Febrero</option>
+              <option value="2">Marzo</option>
+              <option value="3">Abril</option>
+              <option value="4">Mayo</option>
+              <option value="5">Junio</option>
+              <option value="6">Julio</option>
+              <option value="7">Agosto</option>
+              <option value="8">Septiembre</option>
+              <option value="9">Octubre</option>
+              <option value="10">Noviembre</option>
+              <option value="11">Diciembre</option>
+            </select>
+          </div>
+
+          <div id="monthYearFilter" class="hidden">
+            <label class="block text-sm font-medium mb-2"
+              >Seleccionar Año</label
+            >
+            <select id="filterYear" class="w-full p-2 border rounded">
+              <!-- Se llenará dinámicamente -->
+            </select>
+          </div>
+
+          <div id="customFilter" class="hidden col-span-2">
+            <label class="block text-sm font-medium mb-2"
+              >Rango Personalizado</label
+            >
+            <div class="grid grid-cols-2 gap-4">
+              <input
+                type="date"
+                id="startDate"
+                class="w-full p-2 border rounded"
+                placeholder="Fecha inicial"
+              />
+              <input
+                type="date"
+                id="endDate"
+                class="w-full p-2 border rounded"
+                placeholder="Fecha final"
+              />
+            </div>
+          </div>
+
+          <div id="reportFilter" class="col-span-4">
+            <label class="block text-sm font-medium mb-2">Generar Reporte</label>
+            <select id="reportType" class="w-full p-2 border rounded">
+              <option value="none">Seleccionar tipo de reporte</option>
+              <option value="last6Months">Últimos 6 meses</option>
+              <option value="last12Months">Último año</option>
+            </select>
+          </div>
+        </div>
+        <div class="flex justify-end mt-4">
+          <button id="downloadPdf" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-700 mr-2">Descargar PDF</button>
+          <button id="downloadExcel" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-700">Descargar Excel</button>
+        </div>
+      </div>
+
+      <!-- Gráficas -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        <div class="bg-white rounded-lg shadow-md p-6">
+          <h3 class="text-xl font-bold mb-4">Balance General</h3>
+          <canvas id="balanceChart"></canvas>
+        </div>
+        <div class="bg-white rounded-lg shadow-md p-6">
+          <h3 class="text-xl font-bold mb-4">Distribución</h3>
+          <canvas id="distributionChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Lista de transacciones (movida al final) -->
+      <div class="bg-white rounded-lg shadow-md p-6">
+        <h3 class="text-xl font-bold mb-4">Registro de Transacciones</h3>
+        <div class="overflow-x-auto" id="groupedTransactions">
+          <!-- Las transacciones agrupadas se insertarán aquí -->
+        </div>
+      </div>
+
+      <!-- Modal de importación -->
+      <div
+        id="modalImportar"
+        class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden overflow-y-auto h-full w-full"
+      >
+        <div
+          class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white"
+        >
+          <div class="mt-3 text-center">
+            <h3 class="text-lg font-medium text-gray-900">
+              Importar desde Excel
+            </h3>
+            <div class="mt-2 px-7 py-3">
+              <p class="text-sm text-gray-500 mb-4">
+                El archivo Excel debe tener estas columnas:
+              </p>
+              <ul class="text-left text-sm text-gray-700 mb-4">
+                <li>• Tipo (ingreso/gasto)</li>
+                <li>• Monto (número)</li>
+                <li>• Descripción (texto)</li>
+                <li>• Fecha (AAAA-MM-DD)</li>
+              </ul>
+              <input
+                type="file"
+                id="archivoExcel"
+                accept=".xlsx, .xls"
+                class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+              />
+            </div>
+            <div class="items-center px-4 py-3">
+              <button
+                id="botonImportar"
+                onclick="importarExcel()"
+                class="px-4 py-2 bg-blue-500 text-white text-base font-medium rounded-md w-full shadow-sm hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-300"
+              >
+                Importar
+              </button>
+              <button
+                onclick="cerrarModalImportar()"
+                class="mt-3 px-4 py-2 bg-gray-100 text-gray-700 text-base font-medium rounded-md w-full shadow-sm hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-300"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal de confirmación -->
+      <div id="confirmationModal" class="modal">
+        <div class="modal-content">
+          <span class="close" onclick="cerrarModal('confirmationModal')"
+            >&times;</span
+          >
+          <h3 id="confirmationModalTitle"></h3>
+          <p id="confirmationModalMessage"></p>
+          <div class="modal-buttons">
+            <button id="cancelButton" class="btn-cancel">Cancelar</button>
+            <button id="confirmButton" class="btn-delete">Eliminar</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal de información -->
+      <div id="infoModal" class="modal">
+        <div class="modal-content">
+          <span class="close" onclick="cerrarModal('infoModal')">&times;</span>
+          <h3 id="infoModalTitle"></h3>
+          <p id="infoModalMessage"></p>
+          <div class="modal-buttons">
+            <button id="okButton" class="btn-confirm">Aceptar</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal de carga -->
+      <div id="loadingModal" class="modal">
+        <div class="modal-content">
+          <h3>Importando...</h3>
+          <p>Por favor espere mientras se importan los datos.</p>
+        </div>
+      </div>
+
+      <script>
+        function cerrarModal(modalId) {
+          document.getElementById(modalId).style.display = "none";
+        }
+      </script>
+    </div>
+    <script src="api.js"></script>
+    <script src="charts.js"></script>
+    <script src="main.js"></script>
+    <script src="import.js"></script>
+  </body>
+</html>

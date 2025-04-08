@@ -3,11 +3,13 @@ let currentTransactions = [];
 
 async function loadTransactions() {
     try {
-        currentTransactions = await api.getTransactions();
+        const response = await api.getTransactions();
+        currentTransactions = response.data; // Usar directamente el array de transacciones
         updateTransactionsList(currentTransactions);
         updateChartsWithFilters();
     } catch (error) {
         console.error('Error loading transactions:', error);
+        showInfoModal('Error', 'Error al cargar las transacciones: ' + error.message);
     }
 }
 
@@ -27,69 +29,64 @@ function filterTransactions(transactions, filterType, filterDate) {
 }
 
 function updateChartsWithFilters() {
-    const filterType = document.getElementById('filterType').value;
-    let filterDate = null;
-    const reportType = document.getElementById('reportType').value;
+    // Ya no necesitamos obtener filterType ni reportType
+    // Actualizar directamente las gráficas con las transacciones actuales
+    updateTransactionsList(currentTransactions);
+    charts.updateCharts(currentTransactions);
 
-    switch(filterType) {
-        case 'day':
-            filterDate = document.getElementById('filterDate').value;
-            break;
-        case 'week':
-            // ...existing week code...
-            break;
-        case 'month':
-            // ...existing month code...
-            break;
-        case 'custom':
-            // ...existing custom code...
-            break;
-    }
-
-    // Filtrar las transacciones
-    let filteredTransactions = filterTransactions(currentTransactions, filterType, filterDate);
-
-    // Generar reporte si se selecciona un tipo de reporte
-    if (reportType !== 'none') {
-        filteredTransactions = charts.generateReport(currentTransactions, reportType);
-    }
-    
-    // Verificar si hay resultados
-    if (filteredTransactions.length === 0) {
-        showInfoModal('Sin resultados', 'No se encontraron transacciones para los filtros seleccionados.');
-        return; // Salir de la función si no hay resultados
-    }
-
-    // Actualizar la lista y las gráficas si hay resultados
-    updateTransactionsList(filteredTransactions);
-    charts.updateCharts(filteredTransactions);
-
-    // Agregar event listeners para los botones de descarga
+    // Configurar event listeners para los botones de descarga
     document.getElementById('downloadPdf').addEventListener('click', () => {
-        downloadPdf(filteredTransactions);
+        downloadPdf(currentTransactions);
     });
 
     document.getElementById('downloadExcel').addEventListener('click', () => {
-        downloadExcel(filteredTransactions);
+        downloadExcel(currentTransactions);
     });
 }
 
 function downloadPdf(transactions) {
-    if (typeof window.jspdf === 'undefined') {
-        showInfoModal('Error', 'La librería jsPDF no se ha cargado correctamente. Por favor, recargue la página.');
+    const startDate = document.getElementById('startDate').value;
+    const endDate = document.getElementById('endDate').value;
+
+    if (!startDate || !endDate) {
+        showInfoModal('Error', 'Por favor seleccione un rango de fechas');
+        return;
+    }
+
+    // Filtrar transacciones por rango de fechas
+    const filteredTransactions = transactions.filter(t => 
+        t.date >= startDate && t.date <= endDate
+    );
+
+    if (filteredTransactions.length === 0) {
+        showInfoModal('Sin datos', 'No hay transacciones en el rango seleccionado');
         return;
     }
 
     const { jsPDF } = window.jspdf;
-    
     const doc = new jsPDF({
         orientation: 'landscape',
         unit: 'mm',
         format: 'a4'
     });
 
-    doc.setFontSize(20);
-    doc.text('Reporte de Transacciones', 10, 10);
+    // Configurar fuente
+    doc.setFont('Comfortaa', 'normal');
+    doc.setFontSize(24);
+    
+    // Título centrado
+    const title = 'Reporte de Transacciones';
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const titleWidth = doc.getStringUnitWidth(title) * doc.internal.getFontSize() / doc.internal.scaleFactor;
+    const titleX = (pageWidth - titleWidth) / 2;
+    doc.text(title, titleX, 20);
+
+    // Agregar subtítulo con rango de fechas
+    doc.setFontSize(12);
+    const dateRange = `Período: ${formatearFecha(startDate)} - ${formatearFecha(endDate)}`;
+    const dateWidth = doc.getStringUnitWidth(dateRange) * doc.internal.getFontSize() / doc.internal.scaleFactor;
+    const dateX = (pageWidth - dateWidth) / 2;
+    doc.text(dateRange, dateX, 30);
 
     // Definir columnas
     const columns = [
@@ -100,7 +97,7 @@ function downloadPdf(transactions) {
     ];
 
     // Preparar datos para la tabla con validación de montos
-    const tableData = transactions.map(transaction => {
+    const tableData = filteredTransactions.map(transaction => {
         // Usar la propiedad 'amount' en lugar de 'monto'
         const monto = parseFloat(transaction.amount) || 0;
         return {
@@ -113,7 +110,7 @@ function downloadPdf(transactions) {
 
     // Opciones de la tabla
     const options = {
-        startY: 25,
+        startY: 40,
         headStyles: { 
             fillColor: [22, 163, 74], 
             textColor: '#fff',
@@ -146,26 +143,49 @@ function downloadPdf(transactions) {
 }
 
 function downloadExcel(transactions) {
+    const startDate = document.getElementById('startDate').value;
+    const endDate = document.getElementById('endDate').value;
+
+    if (!startDate || !endDate) {
+        showInfoModal('Error', 'Por favor seleccione un rango de fechas');
+        return;
+    }
+
+    // Filtrar transacciones por rango de fechas
+    const filteredTransactions = transactions.filter(t => 
+        t.date >= startDate && t.date <= endDate
+    );
+
+    if (filteredTransactions.length === 0) {
+        showInfoModal('Sin datos', 'No hay transacciones en el rango seleccionado');
+        return;
+    }
+
     const wb = XLSX.utils.book_new();
 
-    // Preparar los datos para el Excel con validación de montos
-    const excelData = transactions.map(transaction => {
-        // Usar la propiedad 'amount' en lugar de 'monto'
-        const monto = parseFloat(transaction.amount) || 0;
-        return {
-            Fecha: formatearFecha(transaction.date),
-            Tipo: transaction.type === 'income' ? 'Ingreso' : 'Gasto',
-            Descripción: transaction.description,
-            Monto: formatCOP(monto)
-        };
+    // Agregar título y rango de fechas
+    const excelData = [
+        [`Reporte de Transacciones`],
+        [`Período: ${formatearFecha(startDate)} - ${formatearFecha(endDate)}`],
+        [], // Línea en blanco
+        ['Fecha', 'Tipo', 'Descripción', 'Monto']
+    ];
+
+    // Agregar datos
+    filteredTransactions.forEach(transaction => {
+        excelData.push([
+            formatearFecha(transaction.date),
+            transaction.type === 'income' ? 'Ingreso' : 'Gasto',
+            transaction.description,
+            formatCOP(transaction.amount)
+        ]);
     });
 
-    const ws = XLSX.utils.json_to_sheet(excelData);
+    const ws = XLSX.utils.aoa_to_sheet(excelData);
     XLSX.utils.book_append_sheet(wb, ws, "Transacciones");
     XLSX.writeFile(wb, 'reporte_transacciones.xlsx');
 }
 
-// Función para formatear montos en pesos colombianos
 function formatCOP(amount) {
     return new Intl.NumberFormat('es-CO', {
         style: 'currency',
@@ -188,6 +208,17 @@ function formatearFecha(fechaString) {
 
 function updateTransactionsList(transactions) {
     const container = document.getElementById('groupedTransactions');
+    
+    if (!transactions || transactions.length === 0) {
+        container.innerHTML = `
+            <div class="text-center py-8 text-gray-500">
+                <p class="text-xl mb-2">No hay transacciones registradas</p>
+                <p>Registra una nueva transacción o importa desde Excel</p>
+            </div>
+        `;
+        return;
+    }
+
     const grouped = groupTransactionsByMonthAndWeek(transactions);
     let html = '';
 
@@ -449,80 +480,46 @@ async function deleteTransaction(id) {
 // Hacer la función deleteTransaction disponible globalmente
 window.deleteTransaction = deleteTransaction;
 
-// Inicializar los filtros
+function deleteAllTransactions() {
+    showConfirmationModal(
+        'Primera Confirmación',
+        '¿Estás seguro de que quieres eliminar TODAS las transacciones?',
+        () => {
+            showConfirmationModal(
+                'Confirmación Final',
+                'Esta acción NO SE PUEDE DESHACER. ¿Realmente deseas continuar?',
+                async () => {
+                    try {
+                        await api.deleteAllTransactions();
+                        showInfoModal('Éxito', 'Todas las transacciones han sido eliminadas.');
+                        await loadTransactions();
+                    } catch (error) {
+                        console.error('Error deleting all transactions:', error);
+                        showInfoModal('Error', 'Error al eliminar las transacciones: ' + error.message);
+                    }
+                },
+                true
+            );
+        },
+        true
+    );
+}
+
+// Hacer la función deleteAllTransactions disponible globalmente
+window.deleteAllTransactions = deleteAllTransactions;
+
+// Reemplazar la función initializeFilters por una versión simplificada
 function initializeFilters() {
-    const currentYear = new Date().getFullYear();
-    const yearSelect = document.getElementById('filterYear');
-    
-    // Llenar años (desde 2020 hasta el año actual)
-    for (let year = 2020; year <= currentYear; year++) {
-        const option = document.createElement('option');
-        option.value = year;
-        option.textContent = year;
-        yearSelect.appendChild(option);
-    }
-    yearSelect.value = currentYear;
-
-    // Manejar cambios en el tipo de filtro
-    document.getElementById('filterType').addEventListener('change', function() {
-        const filterType = this.value;
-        document.getElementById('dayFilter').classList.add('hidden');
-        document.getElementById('weekFilter').classList.add('hidden');
-        document.getElementById('monthFilter').classList.add('hidden');
-        document.getElementById('customFilter').classList.add('hidden');
-
-        switch(filterType) {
-            case 'day':
-                document.getElementById('dayFilter').classList.remove('hidden');
-                break;
-            case 'week':
-                document.getElementById('weekFilter').classList.remove('hidden');
-                updateWeekOptions();
-                break;
-            case 'month':
-                document.getElementById('monthFilter').classList.remove('hidden');
-                break;
-            case 'custom':
-                document.getElementById('customFilter').classList.remove('hidden');
-                break;
-        }
-    });
-}
-
-function updateWeekOptions() {
-    const weekSelect = document.getElementById('filterWeek');
-    weekSelect.innerHTML = '';
-
-    const now = new Date();
-    const currentWeek = getWeekNumber(now);
-    
-    for (let i = 1; i <= 52; i++) {
-        const option = document.createElement('option');
-        option.value = i;
-        option.textContent = `Semana ${i}`;
-        if (i === currentWeek) {
-            option.selected = true;
-        }
-        weekSelect.appendChild(option);
-    }
-}
-
-// Inicializar filtros al cargar la página
-initializeFilters();
-
-// Agregar event listeners para los filtros
-document.getElementById('applyFilter').addEventListener('click', updateChartsWithFilters);
-document.getElementById('filterType').addEventListener('change', () => {
-    if (document.getElementById('filterType').value === 'all') {
-        document.getElementById('filterDate').value = '';
-        updateChartsWithFilters();
-    }
-});
-
-// Asegurarse de que el filtro de día tenga una fecha por defecto
-document.addEventListener('DOMContentLoaded', function() {
+    // Establecer fecha actual en los campos de fecha
     const today = new Date().toISOString().split('T')[0];
-    document.getElementById('filterDate').value = today;
+    document.getElementById('startDate').value = today;
+    document.getElementById('endDate').value = today;
+}
+
+// Eliminar los event listeners antiguos de filtros y simplificar la inicialización
+document.addEventListener('DOMContentLoaded', function() {
+    initializeFilters();
+    loadTransactions();
 });
 
 // Cargar transacciones al iniciar

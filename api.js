@@ -1,59 +1,93 @@
-const API_URL = 'https://backend-finanzas-m3fb.onrender.com/api';
+const STORAGE_KEY = 'financial_transactions';
+
+function isLocalStorageAvailable() {
+    try {
+        const test = 'test';
+        localStorage.setItem(test, test);
+        localStorage.removeItem(test);
+        return true;
+    } catch(e) {
+        return false;
+    }
+}
 
 const api = {
     async getTransactions() {
         try {
-            const response = await fetch(`${API_URL}/transactions`);
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
+            if (!isLocalStorageAvailable()) {
+                throw new Error('LocalStorage no está disponible en este contexto');
             }
-            return await response.json();
+            const storedData = localStorage.getItem(STORAGE_KEY);
+            return { data: storedData ? JSON.parse(storedData) : [] };
         } catch (error) {
-            console.error('API Error:', error);
-            if (error.message.includes('Failed to fetch')) {
-                throw new Error('No se pudo conectar al servidor. Asegúrate de que el servidor esté corriendo en http://localhost:3000');
-            }
-            throw error;
+            console.error('LocalStorage Error:', error);
+            // Si localStorage no está disponible, retornar un array vacío
+            return { data: [] };
         }
     },
 
     async addTransaction(transaction) {
         try {
-            const response = await fetch(`${API_URL}/transactions`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(transaction)
-            });
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
+            if (!isLocalStorageAvailable()) {
+                throw new Error('LocalStorage no está disponible en este contexto');
             }
-            return await response.json();
+
+            const storedData = localStorage.getItem(STORAGE_KEY);
+            const transactions = storedData ? JSON.parse(storedData) : [];
+            
+            const newTransaction = {
+                ...transaction,
+                id: Date.now() + Math.random(), // ID único
+                type: transaction.tipo === 'Ingreso' ? 'income' : 'expense',
+                amount: Number(transaction.monto),
+                description: transaction.descripcion,
+                date: transaction.fecha
+            };
+            
+            transactions.push(newTransaction);
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(transactions));
+            
+            return { 
+                message: 'Transacción agregada',
+                transaction: newTransaction
+            };
         } catch (error) {
-            console.error('API Error:', error);
-            if (error.message.includes('Failed to fetch')) {
-                throw new Error('No se pudo conectar al servidor. Asegúrate de que el servidor esté corriendo en http://localhost:3000');
-            }
-            throw error;
+            console.error('LocalStorage Error:', error);
+            throw new Error('No se pudo guardar la transacción: ' + error.message);
         }
     },
 
     async deleteTransaction(id) {
         try {
-            const response = await fetch(`${API_URL}/transactions/${id}`, {
-                method: 'DELETE'
-            });
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
+            if (!isLocalStorageAvailable()) {
+                throw new Error('LocalStorage no está disponible en este contexto');
             }
-            return await response.json();
+
+            const storedData = localStorage.getItem(STORAGE_KEY);
+            if (!storedData) return { message: 'No hay transacciones' };
+
+            const transactions = JSON.parse(storedData);
+            const filteredTransactions = transactions.filter(t => t.id !== id);
+            
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(filteredTransactions));
+            return { message: 'Transacción eliminada', id };
         } catch (error) {
-            console.error('API Error:', error);
-            if (error.message.includes('Failed to fetch')) {
-                throw new Error('No se pudo conectar al servidor. Asegúrate de que el servidor esté corriendo en http://localhost:3000');
+            console.error('LocalStorage Error:', error);
+            throw new Error('No se pudo eliminar la transacción: ' + error.message);
+        }
+    },
+
+    async deleteAllTransactions() {
+        try {
+            if (!isLocalStorageAvailable()) {
+                throw new Error('LocalStorage no está disponible en este contexto');
             }
-            throw error;
+            
+            localStorage.removeItem(STORAGE_KEY);
+            return { message: 'Todas las transacciones han sido eliminadas' };
+        } catch (error) {
+            console.error('LocalStorage Error:', error);
+            throw new Error('No se pudieron eliminar las transacciones: ' + error.message);
         }
     }
 };

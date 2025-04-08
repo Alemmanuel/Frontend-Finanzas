@@ -162,15 +162,16 @@ function esFechaValida(fechaString) {
 }
 
 async function importarTransacciones(datos) {
-    console.log('Datos a importar:', datos); // Debug
+    console.log('Datos a importar:', datos);
+
+    // Obtener las transacciones existentes del localStorage
+    const storedData = localStorage.getItem(STORAGE_KEY);
+    const transacciones = storedData ? JSON.parse(storedData) : [];
 
     for (const fila of datos) {
         try {
             let fechaISO;
             
-            console.log('Procesando fila:', fila); // Debug
-
-            // Convertir la fecha según su tipo
             if (typeof fila.fecha === 'number') {
                 const fecha = new Date((fila.fecha - 25569) * 86400 * 1000);
                 fechaISO = fecha.toISOString().split('T')[0];
@@ -178,11 +179,9 @@ async function importarTransacciones(datos) {
                 const [dia, mes, anio] = fila.fecha.split('/');
                 fechaISO = `${anio}-${mes.padStart(2, '0')}-${dia.padStart(2, '0')}`;
             } else {
-                console.log('Formato de fecha no válido:', fila.fecha);
                 throw new Error('Formato de fecha no válido');
             }
 
-            // Asegurarse de que el monto sea un número
             let monto = fila.monto;
             if (typeof monto === 'string') {
                 monto = parseFloat(monto.replace(/[^0-9.,]+/g, '').replace(',', '.'));
@@ -191,31 +190,29 @@ async function importarTransacciones(datos) {
             }
 
             if (isNaN(monto)) {
-                console.log('Monto no válido:', fila.monto);
                 throw new Error('Monto no válido');
             }
 
-            // Mejorar la detección del tipo
             const tipoLower = fila.tipo.toString().toLowerCase().trim();
-            const tipo = tipoLower.includes('ingreso') ? 'Ingreso' : 'Gasto';
+            const tipo = tipoLower.includes('ingreso') ? 'income' : 'expense';
 
-            const transaccion = {
-                tipo: tipo,
-                monto: monto,
-                descripcion: (fila.descripcion || '').toString().trim(),
-                fecha: fechaISO
+            const nuevaTransaccion = {
+                id: Date.now() + Math.random(), // ID único
+                type: tipo,
+                amount: monto,
+                description: (fila.descripcion || '').toString().trim(),
+                date: fechaISO
             };
 
-            console.log('Transacción preparada:', transaccion); // Debug
-
-            const resultado = await api.addTransaction(transaccion);
-            console.log('Respuesta del servidor:', resultado);
-
+            transacciones.push(nuevaTransaccion);
         } catch (error) {
             console.error('Error detallado:', error);
             throw new Error(`Error en la fila "${fila.descripcion}": ${error.message}`);
         }
     }
+
+    // Guardar todas las transacciones de vuelta en localStorage
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(transacciones));
     
     showInfoModal('Éxito', 'Importación completada exitosamente');
     loadTransactions();

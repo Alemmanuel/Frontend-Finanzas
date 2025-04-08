@@ -17,6 +17,9 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
 
+    <!-- Agregar fuente Comfortaa -->
+    <link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@400;700&display=swap" rel="stylesheet">
+
     <style>
       /* Estilos para el modal */
       .modal {
@@ -114,12 +117,31 @@
       .btn-cancel:hover {
         background-color: #d1d5db;
       }
+
+      body {
+        font-family: 'Comfortaa', cursive;
+      }
+      h1, h2, h3, h4, h5, h6 {
+        font-family: 'Comfortaa', cursive;
+        text-align: center;
+      }
     </style>
   </head>
   <body class="bg-gray-100">
     <div class="container mx-auto px-4 py-8">
       <!-- Botón de importación -->
-      
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-2xl font-bold">Control de Finanzas</h2>
+        <div class="space-x-2">
+          <button
+            onclick="abrirModalImportar()"
+            class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
+          >
+            Importar desde Excel
+          </button>
+         
+        </div>
+      </div>
 
       <!-- Formulario de registro -->
       <div class="bg-white rounded-lg shadow-md p-6 mb-6">
@@ -161,103 +183,15 @@
 
       <!-- Nueva sección de filtros -->
       <div class="bg-white rounded-lg shadow-md p-6 mb-6">
-        <div class="flex justify-between items-center mb-4">
-          <h3 class="text-xl font-bold">Filtros de Visualización</h3>
-          <button
-            id="applyFilter"
-            class="bg-blue-500 text-white px-6 py-2 rounded hover:bg-blue-600"
-          >
-            Aplicar Filtro
-          </button>
-        </div>
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <h3 class="text-2xl font-bold mb-6">Filtros y Reportes</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label class="block text-sm font-medium mb-2">Tipo de Filtro</label>
-            <select id="filterType" class="w-full p-2 border rounded">
-              <option value="all">Todo</option>
-              <option value="day">Por Día</option>
-              <option value="week">Por Semana</option>
-              <option value="month">Por Mes</option>
-              <option value="custom">Personalizado</option>
-            </select>
+            <label class="block text-sm font-medium mb-2">Fecha Inicio</label>
+            <input type="date" id="startDate" class="w-full p-2 border rounded"/>
           </div>
-
-          <div id="dayFilter" class="hidden">
-            <label class="block text-sm font-medium mb-2"
-              >Seleccionar Día</label
-            >
-            <input
-              type="date"
-              id="filterDate"
-              class="w-full p-2 border rounded"
-            />
-          </div>
-
-          <div id="weekFilter" class="hidden">
-            <label class="block text-sm font-medium mb-2"
-              >Seleccionar Semana</label
-            >
-            <select id="filterWeek" class="w-full p-2 border rounded">
-              <!-- Se llenará dinámicamente -->
-            </select>
-          </div>
-
-          <div id="monthFilter" class="hidden">
-            <label class="block text-sm font-medium mb-2"
-              >Seleccionar Mes</label
-            >
-            <select id="filterMonth" class="w-full p-2 border rounded">
-              <option value="0">Enero</option>
-              <option value="1">Febrero</option>
-              <option value="2">Marzo</option>
-              <option value="3">Abril</option>
-              <option value="4">Mayo</option>
-              <option value="5">Junio</option>
-              <option value="6">Julio</option>
-              <option value="7">Agosto</option>
-              <option value="8">Septiembre</option>
-              <option value="9">Octubre</option>
-              <option value="10">Noviembre</option>
-              <option value="11">Diciembre</option>
-            </select>
-          </div>
-
-          <div id="monthYearFilter" class="hidden">
-            <label class="block text-sm font-medium mb-2"
-              >Seleccionar Año</label
-            >
-            <select id="filterYear" class="w-full p-2 border rounded">
-              <!-- Se llenará dinámicamente -->
-            </select>
-          </div>
-
-          <div id="customFilter" class="hidden col-span-2">
-            <label class="block text-sm font-medium mb-2"
-              >Rango Personalizado</label
-            >
-            <div class="grid grid-cols-2 gap-4">
-              <input
-                type="date"
-                id="startDate"
-                class="w-full p-2 border rounded"
-                placeholder="Fecha inicial"
-              />
-              <input
-                type="date"
-                id="endDate"
-                class="w-full p-2 border rounded"
-                placeholder="Fecha final"
-              />
-            </div>
-          </div>
-
-          <div id="reportFilter" class="col-span-4">
-            <label class="block text-sm font-medium mb-2">Generar Reporte</label>
-            <select id="reportType" class="w-full p-2 border rounded">
-              <option value="none">Seleccionar tipo de reporte</option>
-              <option value="last6Months">Últimos 6 meses</option>
-              <option value="last12Months">Último año</option>
-            </select>
+          <div>
+            <label class="block text-sm font-medium mb-2">Fecha Fin</label>
+            <input type="date" id="endDate" class="w-full p-2 border rounded"/>
           </div>
         </div>
         <div class="flex justify-end mt-4">

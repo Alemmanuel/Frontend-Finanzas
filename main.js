@@ -45,17 +45,32 @@ function updateChartsWithFilters() {
 }
 
 function downloadPdf(transactions) {
-    const startDate = document.getElementById('startDate').value;
-    const endDate = document.getElementById('endDate').value;
+    const startDateStr = document.getElementById('startDate').value;
+    const endDateStr = document.getElementById('endDate').value;
 
-    if (!startDate || !endDate) {
+    if (!startDateStr || !endDateStr) {
         showInfoModal('Error', 'Por favor seleccione un rango de fechas');
         return;
     }
 
-    // Filtrar transacciones por rango de fechas
+    // Convertir fechas a UTC para comparación
+    const startDate = new Date(startDateStr);
+    const startUTC = new Date(Date.UTC(
+        startDate.getFullYear(),
+        startDate.getMonth(),
+        startDate.getDate()
+    )).toISOString().split('T')[0];
+
+    const endDate = new Date(endDateStr);
+    const endUTC = new Date(Date.UTC(
+        endDate.getFullYear(),
+        endDate.getMonth(),
+        endDate.getDate()
+    )).toISOString().split('T')[0];
+
+    // Filtrar transacciones por rango de fechas usando fechas UTC
     const filteredTransactions = transactions.filter(t => 
-        t.date >= startDate && t.date <= endDate
+        t.date >= startUTC && t.date <= endUTC
     );
 
     if (filteredTransactions.length === 0) {
@@ -83,7 +98,7 @@ function downloadPdf(transactions) {
 
     // Agregar subtítulo con rango de fechas
     doc.setFontSize(12);
-    const dateRange = `Período: ${formatearFecha(startDate)} - ${formatearFecha(endDate)}`;
+    const dateRange = `Período: ${formatearFecha(startDateStr)} - ${formatearFecha(endDateStr)}`;
     const dateWidth = doc.getStringUnitWidth(dateRange) * doc.internal.getFontSize() / doc.internal.scaleFactor;
     const dateX = (pageWidth - dateWidth) / 2;
     doc.text(dateRange, dateX, 30);
@@ -143,17 +158,32 @@ function downloadPdf(transactions) {
 }
 
 function downloadExcel(transactions) {
-    const startDate = document.getElementById('startDate').value;
-    const endDate = document.getElementById('endDate').value;
+    const startDateStr = document.getElementById('startDate').value;
+    const endDateStr = document.getElementById('endDate').value;
 
-    if (!startDate || !endDate) {
+    if (!startDateStr || !endDateStr) {
         showInfoModal('Error', 'Por favor seleccione un rango de fechas');
         return;
     }
 
-    // Filtrar transacciones por rango de fechas
+    // Convertir fechas a UTC para comparación
+    const startDate = new Date(startDateStr);
+    const startUTC = new Date(Date.UTC(
+        startDate.getFullYear(),
+        startDate.getMonth(),
+        startDate.getDate()
+    )).toISOString().split('T')[0];
+
+    const endDate = new Date(endDateStr);
+    const endUTC = new Date(Date.UTC(
+        endDate.getFullYear(),
+        endDate.getMonth(),
+        endDate.getDate()
+    )).toISOString().split('T')[0];
+
+    // Filtrar transacciones por rango de fechas usando fechas UTC
     const filteredTransactions = transactions.filter(t => 
-        t.date >= startDate && t.date <= endDate
+        t.date >= startUTC && t.date <= endUTC
     );
 
     if (filteredTransactions.length === 0) {
@@ -166,7 +196,7 @@ function downloadExcel(transactions) {
     // Agregar título y rango de fechas
     const excelData = [
         [`Reporte de Transacciones`],
-        [`Período: ${formatearFecha(startDate)} - ${formatearFecha(endDate)}`],
+        [`Período: ${formatearFecha(startDateStr)} - ${formatearFecha(endDateStr)}`],
         [], // Línea en blanco
         ['Fecha', 'Tipo', 'Descripción', 'Monto']
     ];
@@ -196,13 +226,15 @@ function formatCOP(amount) {
 }
 
 function formatearFecha(fechaString) {
-    // Ajustar la fecha para la zona horaria local
+    if (!fechaString) return '';
+    
+    // Crear fecha en zona horaria local sin ajustes
     const fecha = new Date(fechaString);
-    const fechaLocal = new Date(fecha.getTime() + fecha.getTimezoneOffset() * 60000);
-    return fechaLocal.toLocaleDateString('es-ES', {
+    return fecha.toLocaleDateString('es-ES', {
         day: '2-digit',
         month: '2-digit',
-        year: 'numeric'
+        year: 'numeric',
+        timeZone: 'UTC' // Forzar UTC para evitar ajustes de zona horaria
     }).replace(/\//g, '-');
 }
 
@@ -422,37 +454,44 @@ function showInfoModal(title, message) {
 }
 
 document.getElementById('transactionForm').addEventListener('submit', async (e) => {
-  e.preventDefault();
+    e.preventDefault();
 
-  showConfirmationModal(
-    'Confirmar Transacción',
-    '¿Estás seguro de que quieres registrar esta transacción?',
-    async () => {
-      document.getElementById('confirmationModal').style.display = "none";
-      const tipo = document.getElementById('type').value === 'income' ? 'Ingreso' : 'Gasto';
-      const monto = Number(document.getElementById('amount').value);
-      const descripcion = document.getElementById('description').value;
-      const fecha = new Date().toISOString().split('T')[0];
+    showConfirmationModal(
+        'Confirmar Transacción',
+        '¿Estás seguro de que quieres registrar esta transacción?',
+        async () => {
+            document.getElementById('confirmationModal').style.display = "none";
+            const tipo = document.getElementById('type').value === 'income' ? 'Ingreso' : 'Gasto';
+            const monto = Number(document.getElementById('amount').value);
+            const descripcion = document.getElementById('description').value;
+            
+            // Obtener la fecha actual en formato YYYY-MM-DD sin ajuste de zona horaria
+            const fecha = new Date();
+            const fechaISO = new Date(Date.UTC(
+                fecha.getFullYear(),
+                fecha.getMonth(),
+                fecha.getDate()
+            )).toISOString().split('T')[0];
 
-      const transaction = {
-        tipo: tipo,
-        monto: monto,
-        descripcion: descripcion,
-        fecha: fecha
-      };
+            const transaction = {
+                tipo: tipo,
+                monto: monto,
+                descripcion: descripcion,
+                fecha: fechaISO
+            };
 
-      try {
-        await api.addTransaction(transaction);
-        showInfoModal('Éxito', 'Transacción registrada exitosamente.');
-        loadTransactions();
-        e.target.reset();
-      } catch (error) {
-        console.error('Error adding transaction:', error);
-        showInfoModal('Error', 'Error al registrar la transacción: ' + error.message);
-      }
-    },
-    false // No es eliminación
-  );
+            try {
+                await api.addTransaction(transaction);
+                showInfoModal('Éxito', 'Transacción registrada exitosamente.');
+                loadTransactions();
+                e.target.reset();
+            } catch (error) {
+                console.error('Error adding transaction:', error);
+                showInfoModal('Error', 'Error al registrar la transacción: ' + error.message);
+            }
+        },
+        false // No es eliminación
+    );
 });
 
 // Hacer la función deleteTransaction disponible globalmente
@@ -510,8 +549,15 @@ window.deleteAllTransactions = deleteAllTransactions;
 
 // Reemplazar la función initializeFilters por una versión simplificada
 function initializeFilters() {
-    // Establecer fecha actual en los campos de fecha
-    const today = new Date().toISOString().split('T')[0];
+    // Obtener la fecha actual en UTC
+    const fecha = new Date();
+    const fechaUTC = new Date(Date.UTC(
+        fecha.getFullYear(),
+        fecha.getMonth(),
+        fecha.getDate()
+    ));
+    const today = fechaUTC.toISOString().split('T')[0];
+    
     document.getElementById('startDate').value = today;
     document.getElementById('endDate').value = today;
 }

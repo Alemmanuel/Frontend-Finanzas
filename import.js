@@ -173,11 +173,21 @@ async function importarTransacciones(datos) {
             let fechaISO;
             
             if (typeof fila.fecha === 'number') {
+                // Convertir fecha de Excel a fecha UTC
                 const fecha = new Date((fila.fecha - 25569) * 86400 * 1000);
-                fechaISO = fecha.toISOString().split('T')[0];
+                fechaISO = new Date(Date.UTC(
+                    fecha.getFullYear(),
+                    fecha.getMonth(),
+                    fecha.getDate()
+                )).toISOString().split('T')[0];
             } else if (typeof fila.fecha === 'string') {
                 const [dia, mes, anio] = fila.fecha.split('/');
-                fechaISO = `${anio}-${mes.padStart(2, '0')}-${dia.padStart(2, '0')}`;
+                // Crear fecha en UTC
+                fechaISO = new Date(Date.UTC(
+                    parseInt(anio),
+                    parseInt(mes) - 1,
+                    parseInt(dia)
+                )).toISOString().split('T')[0];
             } else {
                 throw new Error('Formato de fecha no válido');
             }

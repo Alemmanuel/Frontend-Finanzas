@@ -1,12 +1,63 @@
 const charts = new FinanceCharts();
 let currentTransactions = [];
+let currentFilteredTransactions = [];
+
+// Mantener el estado de la tabla (meses/semanas abiertos) aunque se re-renderice
+const openMonthIds = new Set();
+const openWeekIds = new Set();
+
+function parseLocalDate(dateString) {
+    const [year, month, day] = dateString.split('-').map(Number);
+    return new Date(year, month - 1, day);
+}
+
+function parseCOP(input) {
+    if (typeof input !== 'string') return Number(input) || 0;
+    // Mantener solo dígitos (sin decimales para COP en esta app)
+    const digits = input.replace(/[^\d]/g, '');
+    return digits ? Number(digits) : 0;
+}
+
+function formatCOPInput(value) {
+    const num = parseCOP(value);
+    return new Intl.NumberFormat('es-CO', {
+        maximumFractionDigits: 0
+    }).format(num);
+}
+
+function getFilteredTransactions(transactions) {
+    const typeFilter = document.getElementById('filterType')?.value || 'all';
+    const categoryFilter = document.getElementById('filterCategory')?.value || '';
+    const descFilter = (document.getElementById('filterDescription')?.value || '').trim().toLowerCase();
+
+    let filtered = [...(transactions || [])];
+
+    // Tipo (opcional)
+    if (typeFilter !== 'all') {
+        filtered = filtered.filter(t => t.type === typeFilter);
+    }
+
+    // Categoría (opcional). Si se elige categoría, se asume filtro sobre gastos.
+    if (categoryFilter) {
+        filtered = filtered.filter(t => t.type === 'expense' && (t.category || '') === categoryFilter);
+    }
+
+    // Descripción (opcional)
+    if (descFilter) {
+        filtered = filtered.filter(t => (t.description || '').toLowerCase().includes(descFilter));
+    }
+
+    return filtered;
+}
 
 async function loadTransactions() {
     try {
         const response = await api.getTransactions();
-        currentTransactions = response.data; // Usar directamente el array de transacciones
-        updateTransactionsList(currentTransactions);
+        currentTransactions = response.data;
+
+        // Usar directamente el array de transacciones
         updateChartsWithFilters();
+
     } catch (error) {
         console.error('Error loading transactions:', error);
         showInfoModal('Error', 'Error al cargar las transacciones: ' + error.message);
@@ -29,19 +80,50 @@ function filterTransactions(transactions, filterType, filterDate) {
 }
 
 function updateChartsWithFilters() {
-    // Ya no necesitamos obtener filterType ni reportType
-    // Actualizar directamente las gráficas con las transacciones actuales
-    updateTransactionsList(currentTransactions);
-    charts.updateCharts(currentTransactions);
+    // Filtros SOLO para la tabla
+    currentFilteredTransactions = getFilteredTransactions(currentTransactions);
+    // Abrir automáticamente todos los grupos filtrados
+
+
+    const grouped = groupTransactionsByMonthAndWeek(currentFilteredTransactions);
+
+    Object.keys(grouped).forEach((month, monthIndex) => {
+        const monthId = `month-${monthIndex}`;
+
+        openMonthIds.add(monthId);
+
+        Object.keys(grouped[month]).forEach(week => {
+            const weekId = `${monthId}-week-${String(week)}`;
+            openWeekIds.add(weekId);
+        });
+    });
+    updateTransactionsList(currentFilteredTransactions);
+
+    // Charts siempre con todos los datos
+    const distributionRange =
+        document.getElementById('distributionRange')?.value || 'currentCycle';
+
+    charts.updateCharts(
+        currentTransactions,
+        distributionRange
+    );
+    updateTopCategories(currentTransactions);
+    generateFinancialInsights(currentTransactions);
 
     // Configurar event listeners para los botones de descarga
-    document.getElementById('downloadPdf').addEventListener('click', () => {
-        downloadPdf(currentTransactions);
-    });
+    // Evitar registrar listeners repetidos en cada recarga
+    const pdfBtn = document.getElementById('downloadPdf');
+    const excelBtn = document.getElementById('downloadExcel');
 
-    document.getElementById('downloadExcel').addEventListener('click', () => {
-        downloadExcel(currentTransactions);
-    });
+    if (!pdfBtn.dataset.listenerAttached) {
+        pdfBtn.addEventListener('click', () => downloadPdf(currentTransactions));
+        pdfBtn.dataset.listenerAttached = 'true';
+    }
+
+    if (!excelBtn.dataset.listenerAttached) {
+        excelBtn.addEventListener('click', () => downloadExcel(currentTransactions));
+        excelBtn.dataset.listenerAttached = 'true';
+    }
 }
 
 function downloadPdf(transactions) {
@@ -69,7 +151,7 @@ function downloadPdf(transactions) {
     )).toISOString().split('T')[0];
 
     // Filtrar transacciones por rango de fechas usando fechas UTC
-    const filteredTransactions = transactions.filter(t => 
+    const filteredTransactions = transactions.filter(t =>
         t.date >= startUTC && t.date <= endUTC
     );
 
@@ -88,7 +170,7 @@ function downloadPdf(transactions) {
     // Configurar fuente
     doc.setFont('Comfortaa', 'normal');
     doc.setFontSize(24);
-    
+
     // Título centrado
     const title = 'Reporte de Transacciones';
     const pageWidth = doc.internal.pageSize.getWidth();
@@ -108,6 +190,7 @@ function downloadPdf(transactions) {
         { header: 'Fecha', dataKey: 'date' },
         { header: 'Tipo', dataKey: 'type' },
         { header: 'Descripción', dataKey: 'description' },
+        { header: 'Categoría', dataKey: 'category' },
         { header: 'Monto', dataKey: 'amount' }
     ];
 
@@ -119,6 +202,7 @@ function downloadPdf(transactions) {
             date: formatearFecha(transaction.date),
             type: transaction.type === 'income' ? 'Ingreso' : 'Gasto',
             description: transaction.description,
+            category: transaction.type === 'expense' ? (transaction.category || 'Sin categoría') : '-',
             amount: formatCOP(monto)
         };
     });
@@ -126,8 +210,8 @@ function downloadPdf(transactions) {
     // Opciones de la tabla
     const options = {
         startY: 40,
-        headStyles: { 
-            fillColor: [22, 163, 74], 
+        headStyles: {
+            fillColor: [22, 163, 74],
             textColor: '#fff',
             fontSize: 12,
             fontStyle: 'bold'
@@ -142,7 +226,7 @@ function downloadPdf(transactions) {
             amount: { columnWidth: 40, halign: 'right' }
         },
         margin: { horizontal: 10 },
-        didDrawPage: function(data) {
+        didDrawPage: function (data) {
             doc.setFontSize(9);
             doc.text('Control de Finanzas - Reporte de Transacciones', data.settings.margin.left, doc.internal.pageSize.getHeight() - 10);
         }
@@ -182,7 +266,7 @@ function downloadExcel(transactions) {
     )).toISOString().split('T')[0];
 
     // Filtrar transacciones por rango de fechas usando fechas UTC
-    const filteredTransactions = transactions.filter(t => 
+    const filteredTransactions = transactions.filter(t =>
         t.date >= startUTC && t.date <= endUTC
     );
 
@@ -198,7 +282,7 @@ function downloadExcel(transactions) {
         [`Reporte de Transacciones`],
         [`Período: ${formatearFecha(startDateStr)} - ${formatearFecha(endDateStr)}`],
         [], // Línea en blanco
-        ['Fecha', 'Tipo', 'Descripción', 'Monto']
+        ['Fecha', 'Tipo', 'Descripción', 'Categoría', 'Monto']
     ];
 
     // Agregar datos
@@ -207,6 +291,7 @@ function downloadExcel(transactions) {
             formatearFecha(transaction.date),
             transaction.type === 'income' ? 'Ingreso' : 'Gasto',
             transaction.description,
+            transaction.type === 'expense' ? (transaction.category || 'Sin categoría') : '-',
             formatCOP(transaction.amount)
         ]);
     });
@@ -225,9 +310,278 @@ function formatCOP(amount) {
     }).format(amount);
 }
 
+function getCurrentFinancialCycleDates() {
+    const now = new Date();
+
+    let start, end;
+
+    if (now.getDate() >= 25) {
+        start = new Date(now.getFullYear(), now.getMonth(), 25);
+        end = new Date(now.getFullYear(), now.getMonth() + 1, 24);
+    } else {
+        start = new Date(now.getFullYear(), now.getMonth() - 1, 25);
+        end = new Date(now.getFullYear(), now.getMonth(), 24);
+    }
+
+    start.setHours(0, 0, 0, 0);
+    end.setHours(23, 59, 59, 999);
+
+    return { start, end };
+}
+
+function updateTopCategories(transactions) {
+    const container = document.getElementById('topCategoriesList');
+
+    if (!container) return;
+
+    const { start, end } = getCurrentFinancialCycleDates();
+
+    // Filtrar transacciones del ciclo actual
+    const cycleTransactions = transactions.filter(t => {
+        const date = parseLocalDate(t.date);
+
+        return date >= start && date <= end;
+    });
+
+    // Total ingresos
+    const totalIncome = cycleTransactions
+        .filter(t => t.type === 'income')
+        .reduce((sum, t) => sum + Number(t.amount), 0);
+
+    // Gastos por categoría
+    const categoryTotals = {};
+
+    cycleTransactions
+        .filter(t => t.type === 'expense')
+        .forEach(t => {
+            const category = t.category || 'Sin categoría';
+
+            categoryTotals[category] =
+                (categoryTotals[category] || 0) + Number(t.amount);
+        });
+
+    // Ordenar top 5
+    const topCategories = Object.entries(categoryTotals)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5);
+
+    // Sin datos
+    if (topCategories.length === 0) {
+        container.innerHTML = `
+            <div class="text-gray-500 text-sm">
+                No hay gastos registrados en este ciclo.
+            </div>
+        `;
+        return;
+    }
+
+    container.innerHTML = topCategories.map(([category, amount]) => {
+
+        const percentage =
+            totalIncome > 0
+                ? ((amount / totalIncome) * 100).toFixed(1)
+                : 0;
+
+        return `
+            <div>
+                <div class="flex justify-between mb-1">
+                    <div class="font-medium">
+                        ${category}
+                    </div>
+
+                    <div class="text-sm text-gray-600">
+                        ${formatCOP(amount)} • ${percentage}%
+                    </div>
+                </div>
+
+                <div class="w-full bg-gray-200 rounded-full h-3">
+                    <div
+                        class="h-3 rounded-full bg-emerald-500"
+                        style="width: ${Math.min(percentage, 100)}%"
+                    ></div>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function generateFinancialInsights(transactions) {
+
+    const container =
+        document.getElementById('financialInsights');
+
+    if (!container) return;
+
+    if (!transactions || transactions.length === 0) {
+
+        container.innerHTML = `
+            <div class="text-gray-500">
+                No hay suficientes datos para generar insights.
+            </div>
+        `;
+
+        return;
+    }
+
+    const insights = [];
+
+    const { start, end } =
+        getCurrentFinancialCycleDates();
+
+    const currentCycleTransactions =
+        transactions.filter(t => {
+
+            const date = new Date(t.date);
+
+            return date >= start && date <= end;
+        });
+
+    const expenses =
+        currentCycleTransactions.filter(
+            t => t.type === 'expense'
+        );
+
+    const incomes =
+        currentCycleTransactions.filter(
+            t => t.type === 'income'
+        );
+
+    const totalExpenses =
+        expenses.reduce(
+            (sum, t) => sum + Number(t.amount),
+            0
+        );
+
+    const totalIncome =
+        incomes.reduce(
+            (sum, t) => sum + Number(t.amount),
+            0
+        );
+
+    /*
+    =========================================
+    ALERTA 1
+    =========================================
+    */
+
+    if (
+        totalIncome > 0 &&
+        totalExpenses >= totalIncome * 0.8
+    ) {
+
+        insights.push({
+            type: 'danger',
+            icon: '💸',
+            title: 'Gastos elevados',
+            text: `Ya has utilizado el ${((totalExpenses / totalIncome) * 100).toFixed(0)}% de tus ingresos en este ciclo.`
+        });
+    }
+
+    /*
+    =========================================
+    ALERTA 2
+    =========================================
+    */
+
+    const categoryTotals = {};
+
+    expenses.forEach(t => {
+
+        const category =
+            t.category || 'Sin categoría';
+
+        const amount =
+            Number(String(t.amount).replace(/[^\d.-]/g, '')) || 0;
+
+        categoryTotals[category] =
+            (categoryTotals[category] || 0)
+            + amount;
+    });
+
+    const topCategory =
+        Object.entries(categoryTotals)
+            .sort((a, b) => b[1] - a[1])[0];
+    if (topCategory) {
+
+        const cleanTopAmount =
+            Number(topCategory[1]) || 0;
+
+        const cleanTotalExpenses =
+            Number(totalExpenses) || 0;
+
+        const percentage =
+            cleanTotalExpenses > 0
+                ? ((cleanTopAmount / cleanTotalExpenses) * 100).toFixed(1)
+                : 0;
+
+        insights.push({
+            type: 'warning',
+            icon: '⚠️',
+            title: 'Categoría dominante',
+            text: `${topCategory[0]} representa el ${percentage}% de tus gastos.`
+        });
+    }
+
+    /*
+    =========================================
+    ALERTA 3
+    =========================================
+    */
+
+    if (totalIncome > totalExpenses) {
+
+        insights.push({
+            type: 'success',
+            icon: '📈',
+            title: 'Buen balance financiero',
+            text: `Este ciclo llevas un ahorro de ${formatCOP(totalIncome - totalExpenses)}.`
+        });
+    }
+
+    /*
+    =========================================
+    ALERTA 4
+    =========================================
+    */
+
+    const biggestExpense =
+        expenses.sort((a, b) =>
+            b.amount - a.amount
+        )[0];
+
+    if (biggestExpense) {
+
+        insights.push({
+            type: 'info',
+            icon: '🧾',
+            title: 'Gasto más alto',
+            text: `${biggestExpense.description} fue tu gasto más alto con ${formatCOP(biggestExpense.amount)}.`
+        });
+    }
+
+    container.innerHTML =
+        insights.map(insight => `
+
+            <div class="insight-card">
+
+                <div class="insight-icon insight-${insight.type}">
+                    ${insight.icon}
+                </div>
+
+                <div class="insight-content">
+                    <h3>${insight.title}</h3>
+
+                    <p>${insight.text}</p>
+                </div>
+
+            </div>
+
+        `).join('');
+}
+
 function formatearFecha(fechaString) {
     if (!fechaString) return '';
-    
+
     // Crear fecha en zona horaria local sin ajustes
     const fecha = new Date(fechaString);
     return fecha.toLocaleDateString('es-ES', {
@@ -240,8 +594,39 @@ function formatearFecha(fechaString) {
 
 function updateTransactionsList(transactions) {
     const container = document.getElementById('groupedTransactions');
-    
+
     if (!transactions || transactions.length === 0) {
+        // Restaurar automáticamente meses abiertos
+        openMonthIds.forEach(monthId => {
+            const monthEl = document.getElementById(monthId);
+
+            if (monthEl) {
+                monthEl.classList.remove('hidden');
+
+                const icon =
+                    document.getElementById(`${monthId}-icon`);
+
+                if (icon) {
+                    icon.style.transform = 'rotate(180deg)';
+                }
+            }
+        });
+
+        // Restaurar automáticamente semanas abiertas
+        openWeekIds.forEach(weekId => {
+            const weekEl = document.getElementById(weekId);
+
+            if (weekEl) {
+                weekEl.classList.remove('hidden');
+
+                const icon =
+                    document.getElementById(`${weekId}-icon`);
+
+                if (icon) {
+                    icon.style.transform = 'rotate(180deg)';
+                }
+            }
+        });
         container.innerHTML = `
             <div class="text-center py-8 text-gray-500">
                 <p class="text-xl mb-2">No hay transacciones registradas</p>
@@ -264,13 +649,14 @@ function updateTransactionsList(transactions) {
     });
 
     sortedMonths.forEach((month, index) => {
-        const monthId = `month-${index}`;
+        const monthId = `month-${month.replace(/\s+/g, '-')}`;
+        const isMonthOpen = openMonthIds.has(monthId) && openMonthIds.size > 0;
         html += `
             <div class="mb-6">
                 <button class="w-full text-left hover:bg-gray-200 transition-colors duration-200" onclick="toggleMonth('${monthId}')">
                     <h4 class="text-lg font-bold bg-gray-100 p-3 rounded-t flex justify-between items-center">
                         <span>${capitalizeFirstLetter(month)}</span>
-                        <svg class="w-6 h-6 transform transition-transform duration-200" id="${monthId}-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg class="w-6 h-6 transform transition-transform duration-200" id="${monthId}-icon" style="transform: rotate(${isMonthOpen ? 180 : 0}deg);" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
                         </svg>
                     </h4>
@@ -282,8 +668,9 @@ function updateTransactionsList(transactions) {
         const sortedWeeks = Object.keys(grouped[month]).sort((a, b) => b - a);
 
         sortedWeeks.forEach(week => {
-            const weekId = `${monthId}-week-${week}`;
-            const weekTransactions = grouped[month][week].sort((a, b) => 
+            const weekId = `${monthId}-week-${String(week)}`;
+            const isWeekOpen = openWeekIds.has(weekId) && openWeekIds.size > 0;
+            const weekTransactions = grouped[month][week].sort((a, b) =>
                 new Date(b.date) - new Date(a.date)  // Ordenar transacciones de más reciente a más antigua
             );
 
@@ -292,7 +679,7 @@ function updateTransactionsList(transactions) {
                     <button class="w-full text-left hover:bg-gray-50 transition-colors duration-200" onclick="toggleWeek('${weekId}')">
                         <h5 class="font-semibold text-gray-700 p-2 flex justify-between items-center">
                             <span>Semana ${week} del mes</span>
-                            <svg class="w-4 h-4 transform transition-transform duration-200" id="${weekId}-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg class="w-4 h-4 transform transition-transform duration-200" id="${weekId}-icon" style="transform: rotate(${isWeekOpen ? 180 : 0}deg);" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
                             </svg>
                         </h5>
@@ -304,6 +691,7 @@ function updateTransactionsList(transactions) {
                                     <th class="px-4 py-2 text-left w-1/6">Fecha</th>
                                     <th class="px-4 py-2 text-left w-1/6">Tipo</th>
                                     <th class="px-4 py-2 text-left w-2/6">Descripción</th>
+                                    <th class="px-4 py-2 text-left w-1/6">Categoría</th>
                                     <th class="px-4 py-2 text-right w-1/6">Monto</th>
                                     <th class="px-4 py-2 text-center w-1/6">Acciones</th>
                                 </tr>
@@ -314,12 +702,19 @@ function updateTransactionsList(transactions) {
                                         <td class="px-4 py-2">${formatearFecha(t.date)}</td>
                                         <td class="px-4 py-2">${t.type === 'income' ? 'Ingreso' : 'Gasto'}</td>
                                         <td class="px-4 py-2">${t.description}</td>
+                                        <td class="px-4 py-2">
+                                            ${t.type === 'expense'
+                    ? (t.category ? t.category : `<span class="text-gray-400">Sin categoría</span>`)
+                    : '-'}
+                                        </td>
                                         <td class="px-4 py-2 text-right ${t.type === 'income' ? 'text-green-600' : 'text-red-600'}">
                                             ${t.type === 'income' ? '+' : '-'}${formatCOP(parseFloat(t.amount))}
                                         </td>
-                                        <td class="px-4 py-2 text-center">
-                                            <button onclick="deleteTransaction(${t.id})" 
-                                                    class="text-red-600 hover:text-red-800">
+                                        <td class="px-4 py-2 text-center space-x-3">
+                                            <button onclick="openEditModal(${t.id})" class="text-emerald-600 hover:text-emerald-800">
+                                                Editar
+                                            </button>
+                                            <button onclick="deleteTransaction(${t.id})" class="text-red-600 hover:text-red-800">
                                                 Eliminar
                                             </button>
                                         </td>
@@ -339,6 +734,42 @@ function updateTransactionsList(transactions) {
     });
 
     container.innerHTML = html;
+
+    // Restaurar meses abiertos
+    openMonthIds.forEach(monthId => {
+
+        const monthEl =
+            document.getElementById(monthId);
+
+        const icon =
+            document.getElementById(`${monthId}-icon`);
+
+        if (monthEl) {
+            monthEl.classList.remove('hidden');
+        }
+
+        if (icon) {
+            icon.style.transform = 'rotate(180deg)';
+        }
+    });
+
+    // Restaurar semanas abiertas
+    openWeekIds.forEach(weekId => {
+
+        const weekEl =
+            document.getElementById(weekId);
+
+        const icon =
+            document.getElementById(`${weekId}-icon`);
+
+        if (weekEl) {
+            weekEl.classList.remove('hidden');
+        }
+
+        if (icon) {
+            icon.style.transform = 'rotate(180deg)';
+        }
+    });
 }
 
 // Función para capitalizar la primera letra
@@ -348,14 +779,20 @@ function capitalizeFirstLetter(string) {
 
 // Función para alternar la visibilidad del contenido del mes
 function toggleMonth(monthId) {
+
     const content = document.getElementById(monthId);
     const icon = document.getElementById(`${monthId}-icon`);
-    
+
     if (content.classList.contains('hidden')) {
+
         content.classList.remove('hidden');
+
         icon.style.transform = 'rotate(180deg)';
+
     } else {
+
         content.classList.add('hidden');
+
         icon.style.transform = 'rotate(0deg)';
     }
 }
@@ -365,16 +802,57 @@ window.toggleMonth = toggleMonth;
 
 // Función para alternar la visibilidad de las semanas
 function toggleWeek(weekId) {
+
     const content = document.getElementById(weekId);
     const icon = document.getElementById(`${weekId}-icon`);
-    
+
     if (content.classList.contains('hidden')) {
+
         content.classList.remove('hidden');
+
         icon.style.transform = 'rotate(180deg)';
+
     } else {
+
         content.classList.add('hidden');
+
         icon.style.transform = 'rotate(0deg)';
     }
+}
+
+function expandAllFilteredTransactions() {
+
+
+
+    const grouped = groupTransactionsByMonthAndWeek(currentFilteredTransactions);
+
+    const sortedMonths = Object.keys(grouped).sort((a, b) => {
+        const [monthA, yearA] = a.split(' ');
+        const [monthB, yearB] = b.split(' ');
+
+        const dateA = new Date(Date.parse(`${monthA} 1, ${yearA}`));
+        const dateB = new Date(Date.parse(`${monthB} 1, ${yearB}`));
+
+        return dateA - dateB;
+    });
+
+    sortedMonths.forEach((month, index) => {
+
+        const monthId = `month-${month.replace(/\s+/g, '-')}`;
+
+        openMonthIds.add(monthId);
+
+        const sortedWeeks = Object.keys(grouped[month]);
+
+        sortedWeeks.forEach(week => {
+
+            const weekId = `${monthId}-week-${String(week)}`;
+
+            openWeekIds.add(weekId);
+        });
+    });
+
+    updateTransactionsList(currentFilteredTransactions);
 }
 
 // Hacer la función toggleWeek disponible globalmente
@@ -382,12 +860,12 @@ window.toggleWeek = toggleWeek;
 
 function groupTransactionsByMonthAndWeek(transactions) {
     const grouped = {};
-    
+
     transactions.forEach(transaction => {
         const date = new Date(transaction.date);
-        const monthYear = date.toLocaleString('es-ES', { 
-            month: 'long', 
-            year: 'numeric' 
+        const monthYear = date.toLocaleString('es-ES', {
+            month: 'long',
+            year: 'numeric'
         });
 
         // Calcular la semana del mes (1-4)
@@ -462,9 +940,15 @@ document.getElementById('transactionForm').addEventListener('submit', async (e) 
         async () => {
             document.getElementById('confirmationModal').style.display = "none";
             const tipo = document.getElementById('type').value === 'income' ? 'Ingreso' : 'Gasto';
-            const monto = Number(document.getElementById('amount').value);
+            const monto = parseCOP(document.getElementById('amount').value);
             const descripcion = document.getElementById('description').value;
-            
+            const categoriaSeleccionada = document.getElementById('category')?.value || 'Sin categoría';
+
+            if (tipo === 'Gasto' && (!categoriaSeleccionada || categoriaSeleccionada === 'Sin categoría')) {
+                showInfoModal('Error', 'Selecciona una categoría para registrar un gasto.');
+                return;
+            }
+
             // Obtener la fecha actual en formato YYYY-MM-DD sin ajuste de zona horaria
             const fecha = new Date();
             const fechaISO = new Date(Date.UTC(
@@ -477,7 +961,8 @@ document.getElementById('transactionForm').addEventListener('submit', async (e) 
                 tipo: tipo,
                 monto: monto,
                 descripcion: descripcion,
-                fecha: fechaISO
+                fecha: fechaISO,
+                categoria: tipo === 'Gasto' ? categoriaSeleccionada : null
             };
 
             try {
@@ -505,8 +990,18 @@ async function deleteTransaction(id) {
             document.getElementById('confirmationModal').style.display = "none";
             try {
                 await api.deleteTransaction(id);
+
+                const openedMonths = new Set(openMonthIds);
+                const openedWeeks = new Set(openWeekIds);
+
                 showInfoModal('Éxito', 'Transacción eliminada exitosamente.');
-                loadTransactions();
+
+                await loadTransactions();
+
+                openedMonths.forEach(id => openMonthIds.add(id));
+                openedWeeks.forEach(id => openWeekIds.add(id));
+
+                updateTransactionsList(currentFilteredTransactions);
             } catch (error) {
                 console.error('Error deleting transaction:', error);
                 showInfoModal('Error', 'Error al eliminar la transacción: ' + error.message);
@@ -547,6 +1042,116 @@ function deleteAllTransactions() {
 // Hacer la función deleteAllTransactions disponible globalmente
 window.deleteAllTransactions = deleteAllTransactions;
 
+let editModalTransactionId = null;
+
+function openEditModal(transactionId) {
+    editModalTransactionId = transactionId;
+
+    const tx = currentTransactions.find(t => t.id === transactionId);
+    if (!tx) {
+        showInfoModal('Error', 'No se encontró la transacción.');
+        return;
+    }
+
+    const modal = document.getElementById('editModal');
+    const typeEl = document.getElementById('editType');
+    const amountEl = document.getElementById('editAmount');
+    const descEl = document.getElementById('editDescription');
+    const dateEl = document.getElementById('editDate');
+    const categoryField = document.getElementById('editCategoryField');
+    const categoryEl = document.getElementById('editCategory');
+    const cancelBtn = document.getElementById('editCancel');
+    const saveBtn = document.getElementById('editSave');
+
+    const isExpense = tx.type === 'expense';
+    if (typeEl) typeEl.value = tx.type;
+    if (amountEl) amountEl.value = formatCOPInput(String(tx.amount ?? '0'));
+    if (descEl) descEl.value = tx.description || '';
+    if (dateEl) dateEl.value = (tx.date || '').split('T')[0];
+    if (categoryEl) categoryEl.value = tx.category || '';
+    if (categoryField) categoryField.style.display = isExpense ? '' : 'none';
+    if (categoryEl) categoryEl.required = isExpense;
+
+    function syncEditCategoryVisibility() {
+        const exp = typeEl?.value === 'expense';
+        if (categoryField) categoryField.style.display = exp ? '' : 'none';
+        if (categoryEl) {
+            categoryEl.required = exp;
+            if (!exp) categoryEl.value = '';
+        }
+    }
+
+    typeEl?.addEventListener('change', syncEditCategoryVisibility);
+    syncEditCategoryVisibility();
+
+    amountEl?.addEventListener('input', (e) => {
+        const el = e.target;
+        el.value = formatCOPInput(el.value);
+    });
+
+    if (cancelBtn) {
+        cancelBtn.onclick = () => {
+            modal.style.display = "none";
+            editModalTransactionId = null;
+        };
+    }
+
+    if (saveBtn) {
+        saveBtn.onclick = async () => {
+            const newType = typeEl?.value;
+            const newAmount = parseCOP(amountEl?.value || '0');
+            const newDesc = (descEl?.value || '').trim();
+            const newDate = dateEl?.value;
+            const newCategory = categoryEl?.value || null;
+
+            if (!newType || !['income', 'expense'].includes(newType)) {
+                showInfoModal('Error', 'Tipo inválido.');
+                return;
+            }
+            if (!newDesc) {
+                showInfoModal('Error', 'La descripción es obligatoria.');
+                return;
+            }
+            if (!newDate) {
+                showInfoModal('Error', 'La fecha es obligatoria.');
+                return;
+            }
+            if (newType === 'expense' && !newCategory) {
+                showInfoModal('Error', 'Selecciona una categoría para el gasto.');
+                return;
+            }
+
+            try {
+                await api.updateTransaction(editModalTransactionId, {
+                    type: newType,
+                    amount: newAmount,
+                    description: newDesc,
+                    date: newDate,
+                    category: newType === 'expense' ? newCategory : null
+                });
+                const openedMonths = new Set(openMonthIds);
+                const openedWeeks = new Set(openWeekIds);
+
+                modal.style.display = "none";
+                editModalTransactionId = null;
+
+                await loadTransactions();
+
+                openedMonths.forEach(id => openMonthIds.add(id));
+                openedWeeks.forEach(id => openWeekIds.add(id));
+
+                updateTransactionsList(currentFilteredTransactions);
+            } catch (error) {
+                showInfoModal('Error', error.message);
+            }
+        };
+    }
+
+    modal.style.display = "block";
+}
+
+window.openEditModal = openEditModal;
+
 // Reemplazar la función initializeFilters por una versión simplificada
 function initializeFilters() {
     // Obtener la fecha actual en UTC
@@ -557,16 +1162,140 @@ function initializeFilters() {
         fecha.getDate()
     ));
     const today = fechaUTC.toISOString().split('T')[0];
-    
+
     document.getElementById('startDate').value = today;
     document.getElementById('endDate').value = today;
 }
 
 // Eliminar los event listeners antiguos de filtros y simplificar la inicialización
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     initializeFilters();
-    loadTransactions();
+    loadTransactions().then(() => {
+
+        // Forzar render inicial del histórico
+        if (
+            charts &&
+            typeof charts.updateHistoryChart === 'function'
+        ) {
+            charts.updateHistoryChart(currentTransactions);
+        }
+    });
+
+    // UX: mostrar categoría solo para gastos + validar categoría
+    const typeEl = document.getElementById('type');
+    const categoryField = document.getElementById('categoryField');
+    const categoryEl = document.getElementById('category');
+
+    function syncCategoryVisibility() {
+        const isExpense = typeEl?.value === 'expense';
+        if (categoryField) categoryField.style.display = isExpense ? '' : 'none';
+        if (categoryEl) {
+            categoryEl.required = isExpense;
+            if (!isExpense) categoryEl.value = '';
+        }
+    }
+
+    typeEl?.addEventListener('change', syncCategoryVisibility);
+    syncCategoryVisibility();
+
+    // Si el formulario se resetea, el "Tipo" vuelve a Ingreso.
+    // Aseguramos ocultar el campo de categoría en ese caso.
+    const formEl = document.getElementById('transactionForm');
+    formEl?.addEventListener('reset', () => {
+        // Esperar a que el reset actualice los valores del form
+        setTimeout(syncCategoryVisibility, 0);
+    });
+
+    // Separadores de miles en monto (input text)
+    const amountEl = document.getElementById('amount');
+    amountEl?.addEventListener('input', (e) => {
+        const el = e.target;
+        const formatted = formatCOPInput(el.value);
+        el.value = formatted;
+    });
+
+    // Filtros (no obligatorios)
+    const filterTypeEl = document.getElementById('filterType');
+    const filterCategoryEl = document.getElementById('filterCategory');
+    const filterDescEl = document.getElementById('filterDescription');
+    const clearFiltersBtn = document.getElementById('clearFilters');
+
+    function syncFilterCategoryAvailability() {
+        // Si el usuario filtra por Ingresos, la categoría no aplica
+        if (filterTypeEl?.value === 'income') {
+            if (filterCategoryEl) {
+                filterCategoryEl.value = '';
+                filterCategoryEl.disabled = true;
+                filterCategoryEl.classList.add('opacity-60');
+            }
+        } else {
+            if (filterCategoryEl) {
+                filterCategoryEl.disabled = false;
+                filterCategoryEl.classList.remove('opacity-60');
+            }
+        }
+    }
+
+    let filterTimer = null;
+    function applyFiltersDebounced() {
+        clearTimeout(filterTimer);
+        filterTimer = setTimeout(() => {
+            syncFilterCategoryAvailability();
+            updateChartsWithFilters();
+        }, 150);
+    }
+
+    filterTypeEl?.addEventListener('change', applyFiltersDebounced);
+    filterCategoryEl?.addEventListener('change', applyFiltersDebounced);
+    filterDescEl?.addEventListener('input', applyFiltersDebounced);
+
+    clearFiltersBtn?.addEventListener('click', () => {
+        if (filterTypeEl) filterTypeEl.value = 'all';
+        if (filterCategoryEl) filterCategoryEl.value = '';
+        if (filterDescEl) filterDescEl.value = '';
+        syncFilterCategoryAvailability();
+        updateChartsWithFilters();
+    });
+
+    const distributionRangeEl =
+        document.getElementById('distributionRange');
+
+    distributionRangeEl?.addEventListener('change', () => {
+        updateChartsWithFilters();
+    });
+
+    syncFilterCategoryAvailability();
+
+    // HISTÓRICO FINANCIERO
+    const historyCategory =
+        document.getElementById('historyCategory');
+
+    const historyPeriod =
+        document.getElementById('historyPeriod');
+
+    const historyChartType =
+        document.getElementById('historyChartType');
+
+    function updateHistorySection() {
+
+        charts.updateHistoryChart(currentTransactions);
+    }
+
+    historyCategory?.addEventListener(
+        'change',
+        updateHistorySection
+    );
+
+    historyPeriod?.addEventListener(
+        'change',
+        updateHistorySection
+    );
+
+    historyChartType?.addEventListener(
+        'change',
+        updateHistorySection
+    );
+
 });
 
-// Cargar transacciones al iniciar
-loadTransactions();
+// Cargar transacciones al iniciar (se hace dentro de DOMContentLoaded)

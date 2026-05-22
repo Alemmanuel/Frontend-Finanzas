@@ -41,7 +41,9 @@ const api = {
                 type: transaction.tipo === 'Ingreso' ? 'income' : 'expense',
                 amount: Number(transaction.monto),
                 description: transaction.descripcion,
-                date: transaction.fecha
+                date: transaction.fecha,
+                // Categoría manual (solo para gastos). Para ingresos se guarda null.
+                category: transaction.tipo === 'Ingreso' ? null : (transaction.categoria || null)
             };
             
             transactions.push(newTransaction);
@@ -88,6 +90,33 @@ const api = {
         } catch (error) {
             console.error('LocalStorage Error:', error);
             throw new Error('No se pudieron eliminar las transacciones: ' + error.message);
+        }
+    }
+    ,
+    async updateTransaction(id, updates) {
+        try {
+            if (!isLocalStorageAvailable()) {
+                throw new Error('LocalStorage no está disponible en este contexto');
+            }
+            const storedData = localStorage.getItem(STORAGE_KEY);
+            const transactions = storedData ? JSON.parse(storedData) : [];
+
+            let updated = false;
+            const updatedTransactions = transactions.map(t => {
+                if (t.id !== id) return t;
+                updated = true;
+                return { ...t, ...updates };
+            });
+
+            if (!updated) {
+                throw new Error('No se encontró la transacción');
+            }
+
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedTransactions));
+            return { message: 'Transacción actualizada', id };
+        } catch (error) {
+            console.error('LocalStorage Error:', error);
+            throw new Error('No se pudo actualizar la transacción: ' + error.message);
         }
     }
 };

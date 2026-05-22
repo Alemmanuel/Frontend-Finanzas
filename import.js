@@ -211,7 +211,8 @@ async function importarTransacciones(datos) {
                 type: tipo,
                 amount: monto,
                 description: (fila.descripcion || '').toString().trim(),
-                date: fechaISO
+                date: fechaISO,
+                category: null
             };
 
             transacciones.push(nuevaTransaccion);

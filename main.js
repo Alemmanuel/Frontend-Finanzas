@@ -1634,15 +1634,6 @@ function loadDataAndCharts() {
 }
 
 document.addEventListener('DOMContentLoaded', function () {
-    // Redirect mode: Google vuelve con ?credential=TOKEN en la URL
-    const urlParams = new URLSearchParams(window.location.search);
-    const urlCredential = urlParams.get('credential');
-    if (urlCredential) {
-        window.history.replaceState({}, document.title, window.location.pathname);
-        handleCredentialResponse({ credential: urlCredential });
-        return;
-    }
-
     const savedUser = localStorage.getItem('current_user');
     if (savedUser) {
         currentUser = JSON.parse(savedUser);

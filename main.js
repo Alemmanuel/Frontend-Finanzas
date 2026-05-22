@@ -1,3 +1,146 @@
+// --- AUTENTICACIÓN ---
+let currentUser = null;
+
+function decodeJWT(token) {
+    try {
+        const base64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+        return JSON.parse(atob(base64));
+    } catch { return null; }
+}
+
+function clearBalanceSummary() {
+    document.getElementById('incomeAmount').textContent = '$0';
+    document.getElementById('expenseAmount').textContent = '$0';
+    document.getElementById('balanceAmount').textContent = '$0';
+    document.getElementById('balanceAmount').className = 'text-2xl font-bold text-gray-600';
+    document.getElementById('incomeChange').textContent = '';
+    document.getElementById('expenseChange').textContent = '';
+    document.getElementById('balanceLabel').textContent = '';
+}
+
+function handleCredentialResponse(response) {
+    const data = decodeJWT(response.credential);
+    if (!data) return;
+
+    currentUser = {
+        googleId: data.sub,
+        name: data.name,
+        email: data.email,
+        picture: data.picture
+    };
+
+    localStorage.setItem('current_user', JSON.stringify(currentUser));
+    setCurrentUser(currentUser.googleId);
+    showApp();
+    setupAppListeners();
+    loadDataAndCharts();
+}
+
+function showApp() {
+    currentTransactions = [];
+    currentFilteredTransactions = [];
+    clearBalanceSummary();
+    document.getElementById('loginScreen').classList.add('hidden');
+    document.getElementById('appContent').classList.remove('hidden');
+    renderAvatar();
+    if (typeof initializeFilters === 'function') initializeFilters();
+}
+
+function showLogin() {
+    document.getElementById('loginScreen').classList.remove('hidden');
+    document.getElementById('appContent').classList.add('hidden');
+}
+
+function renderAvatar() {
+    const img = document.getElementById('avatarImg');
+    const initials = document.getElementById('avatarInitials');
+    const nameEl = document.getElementById('menuUserName');
+    const emailEl = document.getElementById('menuUserEmail');
+
+    nameEl.textContent = currentUser.name;
+    emailEl.textContent = currentUser.email;
+
+    if (currentUser.picture) {
+        img.src = currentUser.picture;
+        img.classList.remove('hidden');
+        initials.classList.add('hidden');
+    } else {
+        img.classList.add('hidden');
+        initials.classList.remove('hidden');
+        initials.textContent = currentUser.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
+    }
+}
+
+function toggleAvatarMenu() {
+    const menu = document.getElementById('avatarMenu');
+    menu.classList.toggle('hidden');
+}
+
+document.addEventListener('click', (e) => {
+    const menu = document.getElementById('avatarMenu');
+    const btn = document.getElementById('avatarButton');
+    if (menu && btn && !btn.contains(e.target) && !menu.contains(e.target)) {
+        menu.classList.add('hidden');
+    }
+});
+
+function logout() {
+    showConfirmationModal(
+        'Cerrar sesión',
+        '¿Estás seguro de que quieres cerrar sesión?',
+        () => {
+            document.getElementById('confirmationModal').style.display = 'none';
+            localStorage.removeItem('current_user');
+            currentUser = null;
+            setCurrentUser(null);
+            currentTransactions = [];
+            currentFilteredTransactions = [];
+            clearBalanceSummary();
+            if (charts && typeof charts.clearCharts === 'function') charts.clearCharts();
+            showLogin();
+            renderGoogleButton();
+        },
+        false
+    );
+}
+
+function openProfileModal() {
+    document.getElementById('profileName').value = currentUser.name;
+    document.getElementById('profileModal').style.display = 'block';
+    document.getElementById('avatarMenu').classList.add('hidden');
+}
+
+function saveProfile() {
+    const newName = document.getElementById('profileName').value.trim();
+    if (!newName) {
+        showInfoModal('Error', 'El nombre no puede estar vacío');
+        return;
+    }
+    currentUser.name = newName;
+    localStorage.setItem('current_user', JSON.stringify(currentUser));
+    renderAvatar();
+    document.getElementById('profileModal').style.display = 'none';
+    showInfoModal('Éxito', 'Perfil actualizado correctamente');
+}
+
+function renderGoogleButton() {
+    function tryRender() {
+        if (typeof google !== 'undefined' && google.accounts) {
+            const container = document.getElementById('googleButton');
+            container.innerHTML = '';
+            google.accounts.id.renderButton(
+                container,
+                { type: 'standard', shape: 'pill', theme: 'outline', size: 'large', text: 'signin_with', logo_alignment: 'left' }
+            );
+        } else {
+            setTimeout(tryRender, 200);
+        }
+    }
+    tryRender();
+}
+
+// --- FIN AUTENTICACIÓN ---
+
 const charts = new FinanceCharts();
 let currentTransactions = [];
 let currentFilteredTransactions = [];
@@ -5,6 +148,59 @@ let currentFilteredTransactions = [];
 // Mantener el estado de la tabla (meses/semanas abiertos) aunque se re-renderice
 const openMonthIds = new Set();
 const openWeekIds = new Set();
+
+// Checkboxes para eliminar múltiples transacciones
+const selectedTransactionIds = new Set();
+
+function toggleSelectAll(checked) {
+    selectedTransactionIds.clear();
+    if (checked) currentFilteredTransactions.forEach(t => selectedTransactionIds.add(t.id));
+    document.querySelectorAll('.transaction-checkbox').forEach(cb => cb.checked = checked);
+    updateDeleteSelectedBtn();
+}
+
+function toggleSelect(id) {
+    if (selectedTransactionIds.has(id)) selectedTransactionIds.delete(id);
+    else selectedTransactionIds.add(id);
+    updateDeleteSelectedBtn();
+}
+
+function updateDeleteSelectedBtn() {
+    const btn = document.getElementById('deleteSelectedBtn');
+    if (!btn) return;
+    const count = selectedTransactionIds.size;
+    btn.disabled = count === 0;
+    btn.textContent = count > 0 ? `Eliminar seleccionadas (${count})` : 'Eliminar seleccionadas';
+}
+
+function deleteSelected() {
+    if (selectedTransactionIds.size === 0) return;
+    showConfirmationModal(
+        'Eliminar seleccionadas',
+        `¿Eliminar ${selectedTransactionIds.size} transacciones?`,
+        async () => {
+            document.getElementById('confirmationModal').style.display = 'none';
+            const ids = [...selectedTransactionIds];
+            selectedTransactionIds.clear();
+            try {
+                for (const id of ids) {
+                    await api.deleteTransaction(id);
+                }
+                const openedMonths = new Set(openMonthIds);
+                const openedWeeks = new Set(openWeekIds);
+                await loadTransactions();
+                openedMonths.forEach(id => openMonthIds.add(id));
+                openedWeeks.forEach(id => openWeekIds.add(id));
+                updateTransactionsList(currentFilteredTransactions);
+                updateDeleteSelectedBtn();
+                showInfoModal('Éxito', `${ids.length} transacciones eliminadas.`);
+            } catch (error) {
+                showInfoModal('Error', error.message);
+            }
+        },
+        true
+    );
+}
 
 function parseLocalDate(dateString) {
     const [year, month, day] = dateString.split('-').map(Number);
@@ -29,6 +225,7 @@ function getFilteredTransactions(transactions) {
     const typeFilter = document.getElementById('filterType')?.value || 'all';
     const categoryFilter = document.getElementById('filterCategory')?.value || '';
     const descFilter = (document.getElementById('filterDescription')?.value || '').trim().toLowerCase();
+    const filterDate = document.getElementById('calendarFilterDate')?.value || '';
 
     let filtered = [...(transactions || [])];
 
@@ -45,6 +242,11 @@ function getFilteredTransactions(transactions) {
     // Descripción (opcional)
     if (descFilter) {
         filtered = filtered.filter(t => (t.description || '').toLowerCase().includes(descFilter));
+    }
+
+    // Filtro por fecha desde el calendario
+    if (filterDate) {
+        filtered = filtered.filter(t => t.date === filterDate);
     }
 
     return filtered;
@@ -109,6 +311,8 @@ function updateChartsWithFilters() {
     );
     updateTopCategories(currentTransactions);
     generateFinancialInsights(currentTransactions);
+    updateBalanceSummary(currentTransactions);
+    renderCalendarHeatmap(currentTransactions);
 
     // Configurar event listeners para los botones de descarga
     // Evitar registrar listeners repetidos en cada recarga
@@ -579,6 +783,160 @@ function generateFinancialInsights(transactions) {
         `).join('');
 }
 
+function animateCount(element, target) {
+    const start = performance.now();
+    const duration = 700;
+    const startVal = 0;
+
+    function update(now) {
+        const elapsed = now - start;
+        const progress = Math.min(elapsed / duration, 1);
+        const eased = 1 - Math.pow(1 - progress, 3);
+        const current = Math.floor(startVal + (target - startVal) * eased);
+        element.textContent = formatCOP(current);
+        if (progress < 1) requestAnimationFrame(update);
+    }
+    requestAnimationFrame(update);
+}
+
+function updateBalanceSummary(transactions) {
+    if (!transactions || transactions.length === 0) {
+        clearBalanceSummary();
+        return;
+    }
+
+    const { start, end } = getCurrentFinancialCycleDates();
+
+    const currentCycle = transactions.filter(t => {
+        const date = parseLocalDate(t.date);
+        return date >= start && date <= end;
+    });
+
+    const income = currentCycle.filter(t => t.type === 'income').reduce((s, t) => s + Number(t.amount), 0);
+    const expense = currentCycle.filter(t => t.type === 'expense').reduce((s, t) => s + Number(t.amount), 0);
+    const balance = income - expense;
+
+    // Calcular ciclo anterior para comparación
+    const prevStart = new Date(start.getFullYear(), start.getMonth() - 1, start.getDate());
+    const prevEnd = new Date(end.getFullYear(), end.getMonth() - 1, end.getDate());
+
+    const prevCycle = transactions.filter(t => {
+        const date = parseLocalDate(t.date);
+        return date >= prevStart && date <= prevEnd;
+    });
+
+    const prevIncome = prevCycle.filter(t => t.type === 'income').reduce((s, t) => s + Number(t.amount), 0);
+    const prevExpense = prevCycle.filter(t => t.type === 'expense').reduce((s, t) => s + Number(t.amount), 0);
+
+    function pctChange(current, previous) {
+        if (previous === 0 && current === 0) return '';
+        if (previous === 0) return 'Nuevo';
+        const change = ((current - previous) / previous) * 100;
+        const sign = change >= 0 ? '+' : '';
+        return `${sign}${change.toFixed(1)}%`;
+    }
+
+    document.getElementById('incomeChange').textContent = pctChange(income, prevIncome);
+    document.getElementById('expenseChange').textContent = pctChange(expense, prevExpense);
+
+    const balEl = document.getElementById('balanceAmount');
+    const balLabel = document.getElementById('balanceLabel');
+    if (balance > 0) {
+        balEl.className = 'text-2xl font-bold text-emerald-600';
+        balLabel.textContent = '✅ Buen ritmo';
+        balLabel.className = 'text-xs font-semibold text-emerald-500';
+    } else if (balance < 0) {
+        balEl.className = 'text-2xl font-bold text-red-600';
+        balLabel.textContent = '⚠️ En déficit';
+        balLabel.className = 'text-xs font-semibold text-red-500';
+    } else {
+        balEl.className = 'text-2xl font-bold text-gray-600';
+        balLabel.textContent = '⚖️ En cero';
+        balLabel.className = 'text-xs font-semibold text-gray-500';
+    }
+
+    animateCount(document.getElementById('incomeAmount'), income);
+    animateCount(document.getElementById('expenseAmount'), expense);
+    animateCount(balEl, balance);
+}
+
+// Calendario de calor
+let calendarDate = new Date();
+
+function calendarPrevMonth() {
+    calendarDate.setMonth(calendarDate.getMonth() - 1);
+    renderCalendarHeatmap(currentTransactions);
+}
+
+function calendarNextMonth() {
+    calendarDate.setMonth(calendarDate.getMonth() + 1);
+    renderCalendarHeatmap(currentTransactions);
+}
+
+function renderCalendarHeatmap(transactions) {
+    const grid = document.getElementById('calendarGrid');
+    const label = document.getElementById('calendarMonthLabel');
+    if (!grid || !label) return;
+
+    const year = calendarDate.getFullYear();
+    const month = calendarDate.getMonth();
+
+    label.textContent = new Date(year, month).toLocaleString('es-ES', { month: 'long', year: 'numeric' });
+
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const firstDay = new Date(year, month, 1).getDay();
+    const startOffset = firstDay === 0 ? 6 : firstDay - 1;
+
+    // Gastos por día (usando parseLocalDate para evitar desfase de timezone)
+    const dailyExpenses = {};
+    (transactions || []).filter(t => t.type === 'expense').forEach(t => {
+        const d = parseLocalDate(t.date);
+        if (d.getFullYear() === year && d.getMonth() === month) {
+            const key = d.getDate();
+            dailyExpenses[key] = (dailyExpenses[key] || 0) + Number(t.amount);
+        }
+    });
+
+    // Escala fija: 2,000,000 como referencia máxima
+    const fixedMax = 2000000;
+
+    function getColor(amount) {
+        if (!amount || amount === 0) return 'bg-gray-100';
+        const ratio = Math.min(amount / fixedMax, 1);
+        if (ratio <= 0.05) return 'bg-green-200';
+        if (ratio <= 0.15) return 'bg-green-300';
+        if (ratio <= 0.30) return 'bg-green-400';
+        if (ratio <= 0.50) return 'bg-yellow-300';
+        if (ratio <= 0.75) return 'bg-orange-400';
+        return 'bg-red-500';
+    }
+
+    let html = '';
+    for (let i = 0; i < startOffset; i++) {
+        html += '<div></div>';
+    }
+    for (let day = 1; day <= daysInMonth; day++) {
+        const amount = dailyExpenses[day] || 0;
+        const color = getColor(amount);
+        const today = new Date();
+        const isToday = day === today.getDate() && month === today.getMonth() && year === today.getFullYear();
+        const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        html += `<div class="${color} rounded p-1.5 text-center text-xs cursor-pointer hover:ring-2 hover:ring-emerald-400 transition-all ${isToday ? 'ring-2 ring-emerald-500 font-bold' : ''}" onclick="filterByDate('${dateStr}')" title="${formatCOP(amount)}">${day}</div>`;
+    }
+
+    grid.innerHTML = html;
+}
+
+function filterByDate(dateStr) {
+    document.getElementById('filterType').value = 'all';
+    document.getElementById('filterCategory').value = '';
+    document.getElementById('filterDescription').value = '';
+    document.getElementById('calendarFilterDate').value = dateStr;
+    updateChartsWithFilters();
+    expandAllFilteredTransactions();
+    document.getElementById('groupedTransactions').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
 function formatearFecha(fechaString) {
     if (!fechaString) return '';
 
@@ -627,6 +985,8 @@ function updateTransactionsList(transactions) {
                 }
             }
         });
+        selectedTransactionIds.clear();
+        updateDeleteSelectedBtn();
         container.innerHTML = `
             <div class="text-center py-8 text-gray-500">
                 <p class="text-xl mb-2">No hay transacciones registradas</p>
@@ -688,6 +1048,9 @@ function updateTransactionsList(transactions) {
                         <table class="w-full table-auto">
                             <thead>
                                 <tr class="bg-gray-50">
+                                    <th class="px-2 py-2 text-center w-8">
+                                        <input type="checkbox" onchange="toggleSelectAll(this.checked)" class="rounded">
+                                    </th>
                                     <th class="px-4 py-2 text-left w-1/6">Fecha</th>
                                     <th class="px-4 py-2 text-left w-1/6">Tipo</th>
                                     <th class="px-4 py-2 text-left w-2/6">Descripción</th>
@@ -699,6 +1062,9 @@ function updateTransactionsList(transactions) {
                             <tbody>
                                 ${weekTransactions.map(t => `
                                     <tr class="border-b hover:bg-gray-50">
+                                        <td class="px-2 py-2 text-center">
+                                            <input type="checkbox" ${selectedTransactionIds.has(t.id) ? 'checked' : ''} onchange="toggleSelect(${t.id})" class="rounded transaction-checkbox">
+                                        </td>
                                         <td class="px-4 py-2">${formatearFecha(t.date)}</td>
                                         <td class="px-4 py-2">${t.type === 'income' ? 'Ingreso' : 'Gasto'}</td>
                                         <td class="px-4 py-2">${t.description}</td>
@@ -979,9 +1345,6 @@ document.getElementById('transactionForm').addEventListener('submit', async (e) 
     );
 });
 
-// Hacer la función deleteTransaction disponible globalmente
-window.deleteTransaction = deleteTransaction;
-
 async function deleteTransaction(id) {
     showConfirmationModal(
         'Confirmar Eliminación',
@@ -1154,34 +1517,14 @@ window.openEditModal = openEditModal;
 
 // Reemplazar la función initializeFilters por una versión simplificada
 function initializeFilters() {
-    // Obtener la fecha actual en UTC
-    const fecha = new Date();
-    const fechaUTC = new Date(Date.UTC(
-        fecha.getFullYear(),
-        fecha.getMonth(),
-        fecha.getDate()
-    ));
-    const today = fechaUTC.toISOString().split('T')[0];
-
-    document.getElementById('startDate').value = today;
-    document.getElementById('endDate').value = today;
+    document.getElementById('startDate').value = '';
+    document.getElementById('endDate').value = '';
 }
 
-// Eliminar los event listeners antiguos de filtros y simplificar la inicialización
-document.addEventListener('DOMContentLoaded', function () {
+function setupAppListeners() {
     initializeFilters();
-    loadTransactions().then(() => {
 
-        // Forzar render inicial del histórico
-        if (
-            charts &&
-            typeof charts.updateHistoryChart === 'function'
-        ) {
-            charts.updateHistoryChart(currentTransactions);
-        }
-    });
-
-    // UX: mostrar categoría solo para gastos + validar categoría
+    // UX: mostrar categoría solo para gastos
     const typeEl = document.getElementById('type');
     const categoryField = document.getElementById('categoryField');
     const categoryEl = document.getElementById('category');
@@ -1198,15 +1541,12 @@ document.addEventListener('DOMContentLoaded', function () {
     typeEl?.addEventListener('change', syncCategoryVisibility);
     syncCategoryVisibility();
 
-    // Si el formulario se resetea, el "Tipo" vuelve a Ingreso.
-    // Aseguramos ocultar el campo de categoría en ese caso.
     const formEl = document.getElementById('transactionForm');
     formEl?.addEventListener('reset', () => {
-        // Esperar a que el reset actualice los valores del form
         setTimeout(syncCategoryVisibility, 0);
     });
 
-    // Separadores de miles en monto (input text)
+    // Separadores de miles en monto
     const amountEl = document.getElementById('amount');
     amountEl?.addEventListener('input', (e) => {
         const el = e.target;
@@ -1214,14 +1554,13 @@ document.addEventListener('DOMContentLoaded', function () {
         el.value = formatted;
     });
 
-    // Filtros (no obligatorios)
+    // Filtros
     const filterTypeEl = document.getElementById('filterType');
     const filterCategoryEl = document.getElementById('filterCategory');
     const filterDescEl = document.getElementById('filterDescription');
     const clearFiltersBtn = document.getElementById('clearFilters');
 
     function syncFilterCategoryAvailability() {
-        // Si el usuario filtra por Ingresos, la categoría no aplica
         if (filterTypeEl?.value === 'income') {
             if (filterCategoryEl) {
                 filterCategoryEl.value = '';
@@ -1242,6 +1581,8 @@ document.addEventListener('DOMContentLoaded', function () {
         filterTimer = setTimeout(() => {
             syncFilterCategoryAvailability();
             updateChartsWithFilters();
+            expandAllFilteredTransactions();
+            document.getElementById('groupedTransactions').scrollIntoView({ behavior: 'smooth', block: 'start' });
         }, 150);
     }
 
@@ -1253,49 +1594,54 @@ document.addEventListener('DOMContentLoaded', function () {
         if (filterTypeEl) filterTypeEl.value = 'all';
         if (filterCategoryEl) filterCategoryEl.value = '';
         if (filterDescEl) filterDescEl.value = '';
+        document.getElementById('calendarFilterDate').value = '';
+        initializeFilters();
         syncFilterCategoryAvailability();
         updateChartsWithFilters();
+        expandAllFilteredTransactions();
     });
 
-    const distributionRangeEl =
-        document.getElementById('distributionRange');
-
+    const distributionRangeEl = document.getElementById('distributionRange');
     distributionRangeEl?.addEventListener('change', () => {
         updateChartsWithFilters();
     });
 
     syncFilterCategoryAvailability();
 
-    // HISTÓRICO FINANCIERO
-    const historyCategory =
-        document.getElementById('historyCategory');
-
-    const historyPeriod =
-        document.getElementById('historyPeriod');
-
-    const historyChartType =
-        document.getElementById('historyChartType');
+    // Histórico financiero
+    const historyCategory = document.getElementById('historyCategory');
+    const historyPeriod = document.getElementById('historyPeriod');
+    const historyChartType = document.getElementById('historyChartType');
 
     function updateHistorySection() {
-
         charts.updateHistoryChart(currentTransactions);
     }
 
-    historyCategory?.addEventListener(
-        'change',
-        updateHistorySection
-    );
+    historyCategory?.addEventListener('change', updateHistorySection);
+    historyPeriod?.addEventListener('change', updateHistorySection);
+    historyChartType?.addEventListener('change', updateHistorySection);
+}
 
-    historyPeriod?.addEventListener(
-        'change',
-        updateHistorySection
-    );
+function loadDataAndCharts() {
+    loadTransactions().then(() => {
+        if (charts && typeof charts.updateHistoryChart === 'function') {
+            charts.updateHistoryChart(currentTransactions);
+        }
+    });
+}
 
-    historyChartType?.addEventListener(
-        'change',
-        updateHistorySection
-    );
-
+document.addEventListener('DOMContentLoaded', function () {
+    const savedUser = localStorage.getItem('current_user');
+    if (savedUser) {
+        currentUser = JSON.parse(savedUser);
+        setCurrentUser(currentUser.googleId);
+        showApp();
+        setupAppListeners();
+        loadDataAndCharts();
+    } else {
+        showLogin();
+        renderGoogleButton();
+    }
 });
 
 // Cargar transacciones al iniciar (se hace dentro de DOMContentLoaded)

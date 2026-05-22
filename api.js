@@ -1,4 +1,12 @@
-const STORAGE_KEY = 'financial_transactions';
+let CURRENT_USER_ID = null;
+
+function getStorageKey() {
+    return CURRENT_USER_ID ? `financial_transactions_${CURRENT_USER_ID}` : 'financial_transactions';
+}
+
+function setCurrentUser(googleId) {
+    CURRENT_USER_ID = googleId;
+}
 
 function isLocalStorageAvailable() {
     try {
@@ -17,7 +25,7 @@ const api = {
             if (!isLocalStorageAvailable()) {
                 throw new Error('LocalStorage no está disponible en este contexto');
             }
-            const storedData = localStorage.getItem(STORAGE_KEY);
+            const storedData = localStorage.getItem(getStorageKey());
             return { data: storedData ? JSON.parse(storedData) : [] };
         } catch (error) {
             console.error('LocalStorage Error:', error);
@@ -32,7 +40,7 @@ const api = {
                 throw new Error('LocalStorage no está disponible en este contexto');
             }
 
-            const storedData = localStorage.getItem(STORAGE_KEY);
+            const storedData = localStorage.getItem(getStorageKey());
             const transactions = storedData ? JSON.parse(storedData) : [];
             
             const newTransaction = {
@@ -47,7 +55,7 @@ const api = {
             };
             
             transactions.push(newTransaction);
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(transactions));
+            localStorage.setItem(getStorageKey(), JSON.stringify(transactions));
             
             return { 
                 message: 'Transacción agregada',
@@ -65,13 +73,13 @@ const api = {
                 throw new Error('LocalStorage no está disponible en este contexto');
             }
 
-            const storedData = localStorage.getItem(STORAGE_KEY);
+            const storedData = localStorage.getItem(getStorageKey());
             if (!storedData) return { message: 'No hay transacciones' };
 
             const transactions = JSON.parse(storedData);
             const filteredTransactions = transactions.filter(t => t.id !== id);
             
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(filteredTransactions));
+            localStorage.setItem(getStorageKey(), JSON.stringify(filteredTransactions));
             return { message: 'Transacción eliminada', id };
         } catch (error) {
             console.error('LocalStorage Error:', error);
@@ -85,7 +93,7 @@ const api = {
                 throw new Error('LocalStorage no está disponible en este contexto');
             }
             
-            localStorage.removeItem(STORAGE_KEY);
+            localStorage.removeItem(getStorageKey());
             return { message: 'Todas las transacciones han sido eliminadas' };
         } catch (error) {
             console.error('LocalStorage Error:', error);
@@ -98,7 +106,7 @@ const api = {
             if (!isLocalStorageAvailable()) {
                 throw new Error('LocalStorage no está disponible en este contexto');
             }
-            const storedData = localStorage.getItem(STORAGE_KEY);
+            const storedData = localStorage.getItem(getStorageKey());
             const transactions = storedData ? JSON.parse(storedData) : [];
 
             let updated = false;
@@ -112,7 +120,7 @@ const api = {
                 throw new Error('No se encontró la transacción');
             }
 
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedTransactions));
+            localStorage.setItem(getStorageKey(), JSON.stringify(updatedTransactions));
             return { message: 'Transacción actualizada', id };
         } catch (error) {
             console.error('LocalStorage Error:', error);
@@ -120,3 +128,6 @@ const api = {
         }
     }
 };
+
+window.setCurrentUser = setCurrentUser;
+window.getStorageKey = getStorageKey;

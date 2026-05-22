@@ -750,5 +750,4 @@ This project was made possible by the incredible open-source community and the f
 *If this project helped you, inspired you, or saved you time — please star it, share it, or contribute to it.*
 
 *Your support fuels the next feature.*
-
 </div>

@@ -165,7 +165,7 @@ async function importarTransacciones(datos) {
     console.log('Datos a importar:', datos);
 
     // Obtener las transacciones existentes del localStorage
-    const storedData = localStorage.getItem(STORAGE_KEY);
+    const storedData = localStorage.getItem(getStorageKey());
     const transacciones = storedData ? JSON.parse(storedData) : [];
 
     for (const fila of datos) {
@@ -223,7 +223,7 @@ async function importarTransacciones(datos) {
     }
 
     // Guardar todas las transacciones de vuelta en localStorage
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(transacciones));
+    localStorage.setItem(getStorageKey(), JSON.stringify(transacciones));
     
     showInfoModal('Éxito', 'Importación completada exitosamente');
     loadTransactions();

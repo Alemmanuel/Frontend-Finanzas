@@ -12,7 +12,7 @@ async function apiFetch(path, options = {}) {
     ...options
   });
   const data = await res.json();
-  if (!res.ok) throw new Error(data.error || 'Error del servidor');
+  if (!res.ok) throw new Error((data.error || 'Error del servidor') + (data.details ? ` (${data.details})` : ''));
   return data;
 }
 

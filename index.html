@@ -303,27 +303,6 @@
     .page-section { display: block; }
     .page-section-hidden { display: none !important; }
 
-    /* --- API STATUS BANNER --- */
-    #apiStatus {
-      position: fixed;
-      bottom: 1rem;
-      left: 50%;
-      transform: translateX(-50%);
-      z-index: 9999;
-      padding: 0.6rem 1.2rem;
-      border-radius: 0.75rem;
-      font-size: 0.85rem;
-      font-weight: 600;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-      display: none;
-      white-space: nowrap;
-      max-width: 90vw;
-      text-align: center;
-      transition: opacity 0.3s;
-    }
-    #apiStatus.online { background: #d1fae5; color: #059669; display: block; }
-    #apiStatus.offline { background: #fee2e2; color: #dc2626; display: block; }
-
     /* --- MOBILE RESPONSIVE --- */
     @media (max-width: 639px) {
       .mobile-hide { display: none !important; }
@@ -1037,9 +1016,6 @@
     </script>
   </div>
   </div>
-
-  <!-- API Status Banner -->
-  <div id="apiStatus"></div>
 
   <script src="api.js"></script>
   <script src="charts.js"></script>

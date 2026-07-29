@@ -1790,33 +1790,6 @@ function loadDataAndCharts() {
     });
 }
 
-window.updateApiStatus = function(online) {
-    const el = document.getElementById('apiStatus');
-    if (!el) return;
-    if (online) {
-        el.className = 'online';
-        el.textContent = 'Conectado al servidor';
-        el.style.opacity = '1';
-        setTimeout(() => { el.style.opacity = '0'; setTimeout(() => { el.style.display = 'none'; }, 300); }, 3000);
-    } else {
-        el.className = 'offline';
-        el.textContent = 'Servidor no disponible — usando almacenamiento local';
-        el.style.opacity = '1';
-    }
-};
-
-async function checkApiHealth() {
-    try {
-        const baseUrl = (window.API_URL || 'http://localhost:3000/api').replace(/\/api$/, '');
-        const res = await fetch(`${baseUrl}/api/test-db`);
-        updateApiStatus(res.ok);
-        return res.ok;
-    } catch {
-        updateApiStatus(false);
-        return false;
-    }
-}
-
 document.addEventListener('DOMContentLoaded', function () {
     applyDarkModePreference();
     if (localStorage.getItem('sidebarCollapsed') === 'true') {
@@ -1834,13 +1807,9 @@ document.addEventListener('DOMContentLoaded', function () {
     } else {
         renderGoogleButton();
     }
-    checkApiHealth();
 });
 
 // --- PRESUPUESTOS ---
-function getBudgetKey() {
-    return currentUser?.googleId ? `budgets_${currentUser.googleId}` : 'budgets';
-}
 
 async function saveBudget(e) {
     e.preventDefault();
@@ -1872,9 +1841,7 @@ function getMonthSpending(category) {
         const now = new Date();
         const month = now.getMonth();
         const year = now.getFullYear();
-        const transactions = (typeof currentTransactions !== 'undefined' && currentTransactions.length)
-            ? currentTransactions
-            : JSON.parse(localStorage.getItem(window.getStorageKey?.() || 'financial_transactions') || '[]');
+        const transactions = currentTransactions || [];
 
         return transactions
             .filter(t => {

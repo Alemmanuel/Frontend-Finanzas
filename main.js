@@ -461,6 +461,8 @@ function updateChartsWithFilters() {
     try { charts.updateCharts(currentTransactions, distributionRange); } catch (e) { console.error('charts error:', e); }
     try { updateTopCategories(currentTransactions); } catch (e) { console.error('topCategories error:', e); }
     try { generateFinancialInsights(currentTransactions); } catch (e) { console.error('insights error:', e); }
+    console.log('DEBUG trans count:', currentTransactions?.length, 'sample:', JSON.stringify(currentTransactions?.[0]));
+    console.log('DEBUG cycle:', JSON.stringify(getCurrentFinancialCycleDates()));
     try { updateBalanceSummary(currentTransactions); } catch (e) { console.error('balance error:', e); }
     try { renderCalendarHeatmap(currentTransactions); } catch (e) { console.error('calendar error:', e); }
 
@@ -959,9 +961,14 @@ function updateBalanceSummary(transactions) {
 
     const currentCycle = transactions.filter(t => {
         const date = parseLocalDate(t.date);
-        return date >= start && date <= end;
+        const match = date && date >= start && date <= end;
+        if (!match) {
+            console.log('DEBUG date filter:', { raw: t.date, parsed: date?.toString(), start: start.toString(), end: end.toString() });
+        }
+        return match;
     });
 
+    console.log('DEBUG currentCycle count:', currentCycle.length, 'of', transactions.length);
     const income = currentCycle.filter(t => t.type === 'income').reduce((s, t) => s + Number(t.amount), 0);
     const expense = currentCycle.filter(t => t.type === 'expense').reduce((s, t) => s + Number(t.amount), 0);
     const balance = income - expense;

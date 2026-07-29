@@ -83,6 +83,7 @@ const api = {
       return await res.json();
     } catch {
       console.warn('API no disponible, usando localStorage como fallback');
+      apiFallbackWarning();
       return fallbackGetTransactions();
     }
   },
@@ -107,6 +108,7 @@ const api = {
       return await res.json();
     } catch {
       console.warn('API no disponible, guardando en localStorage');
+      apiFallbackWarning();
       return fallbackAddTransaction(transaction);
     }
   },
@@ -121,6 +123,7 @@ const api = {
       return await res.json();
     } catch {
       console.warn('API no disponible, eliminando en localStorage');
+      apiFallbackWarning();
       return fallbackDeleteTransaction(id);
     }
   },
@@ -135,6 +138,7 @@ const api = {
       return await res.json();
     } catch {
       console.warn('API no disponible, limpiando localStorage');
+      apiFallbackWarning();
       return fallbackDeleteAllTransactions();
     }
   },
@@ -155,6 +159,7 @@ const api = {
       return await res.json();
     } catch {
       console.warn('API no disponible, actualizando en localStorage');
+      apiFallbackWarning();
       return fallbackUpdateTransaction(id, updates);
     }
   },
@@ -169,6 +174,7 @@ const api = {
       return await res.json();
     } catch {
       console.warn('API no disponible, usando localStorage');
+      apiFallbackWarning();
       const data = JSON.parse(localStorage.getItem(getBudgetKey()) || '[]');
       return { data };
     }
@@ -186,6 +192,7 @@ const api = {
       return await res.json();
     } catch {
       console.warn('API no disponible, guardando en localStorage');
+      apiFallbackWarning();
       const budgets = JSON.parse(localStorage.getItem(getBudgetKey()) || '[]');
       const existing = budgets.find(b => b.category === category);
       if (existing) existing.limit_amount = limit_amount;
@@ -205,6 +212,7 @@ const api = {
       return await res.json();
     } catch {
       console.warn('API no disponible, eliminando en localStorage');
+      apiFallbackWarning();
       let budgets = JSON.parse(localStorage.getItem(getBudgetKey()) || '[]');
       budgets = budgets.filter(b => b.category !== category);
       localStorage.setItem(getBudgetKey(), JSON.stringify(budgets));
@@ -213,6 +221,14 @@ const api = {
   }
 };
 
+function apiFallbackWarning() {
+    if (typeof window.updateApiStatus === 'function') {
+        window.updateApiStatus(false);
+    }
+}
+
 window.setCurrentUser = setCurrentUser;
 window.getStorageKey = getLocalStorageKey;
 window.getBudgetKey = getBudgetKey;
+window.API_URL = API_URL;
+window.apiFallbackWarning = apiFallbackWarning;

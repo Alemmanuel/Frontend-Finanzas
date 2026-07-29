@@ -458,14 +458,11 @@ function updateChartsWithFilters() {
     const distributionRange =
         document.getElementById('distributionRange')?.value || 'currentCycle';
 
-    charts.updateCharts(
-        currentTransactions,
-        distributionRange
-    );
-    updateTopCategories(currentTransactions);
-    generateFinancialInsights(currentTransactions);
-    updateBalanceSummary(currentTransactions);
-    renderCalendarHeatmap(currentTransactions);
+    try { charts.updateCharts(currentTransactions, distributionRange); } catch (e) { console.error('charts error:', e); }
+    try { updateTopCategories(currentTransactions); } catch (e) { console.error('topCategories error:', e); }
+    try { generateFinancialInsights(currentTransactions); } catch (e) { console.error('insights error:', e); }
+    try { updateBalanceSummary(currentTransactions); } catch (e) { console.error('balance error:', e); }
+    try { renderCalendarHeatmap(currentTransactions); } catch (e) { console.error('calendar error:', e); }
 
     // Configurar event listeners para los botones de descarga
     // Evitar registrar listeners repetidos en cada recarga

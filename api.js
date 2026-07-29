@@ -20,6 +20,10 @@ function getLocalStorageKey() {
   return CURRENT_USER_ID ? `financial_transactions_${CURRENT_USER_ID}` : 'financial_transactions';
 }
 
+function getBudgetKey() {
+  return CURRENT_USER_ID ? `budgets_${CURRENT_USER_ID}` : 'budgets';
+}
+
 async function fallbackGetTransactions() {
   const storedData = localStorage.getItem(getLocalStorageKey());
   return { data: storedData ? JSON.parse(storedData) : [] };
@@ -153,8 +157,62 @@ const api = {
       console.warn('API no disponible, actualizando en localStorage');
       return fallbackUpdateTransaction(id, updates);
     }
+  },
+
+  // --- BUDGETS ---
+
+  async getBudgets() {
+    if (!CURRENT_USER_ID) return { data: [] };
+    try {
+      const res = await fetch(`${API_URL}/budgets?user_id=${CURRENT_USER_ID}`);
+      if (!res.ok) throw new Error('API no disponible');
+      return await res.json();
+    } catch {
+      console.warn('API no disponible, usando localStorage');
+      const data = JSON.parse(localStorage.getItem(getBudgetKey()) || '[]');
+      return { data };
+    }
+  },
+
+  async saveBudget(category, limit_amount) {
+    if (!CURRENT_USER_ID) throw new Error('Usuario no autenticado');
+    try {
+      const res = await fetch(`${API_URL}/budgets`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: CURRENT_USER_ID, category, limit_amount })
+      });
+      if (!res.ok) throw new Error('API no disponible');
+      return await res.json();
+    } catch {
+      console.warn('API no disponible, guardando en localStorage');
+      const budgets = JSON.parse(localStorage.getItem(getBudgetKey()) || '[]');
+      const existing = budgets.find(b => b.category === category);
+      if (existing) existing.limit_amount = limit_amount;
+      else budgets.push({ category, limit_amount });
+      localStorage.setItem(getBudgetKey(), JSON.stringify(budgets));
+      return { data: { category, limit_amount } };
+    }
+  },
+
+  async deleteBudget(category) {
+    if (!CURRENT_USER_ID) throw new Error('Usuario no autenticado');
+    try {
+      const res = await fetch(`${API_URL}/budgets/${encodeURIComponent(category)}?user_id=${CURRENT_USER_ID}`, {
+        method: 'DELETE'
+      });
+      if (!res.ok) throw new Error('API no disponible');
+      return await res.json();
+    } catch {
+      console.warn('API no disponible, eliminando en localStorage');
+      let budgets = JSON.parse(localStorage.getItem(getBudgetKey()) || '[]');
+      budgets = budgets.filter(b => b.category !== category);
+      localStorage.setItem(getBudgetKey(), JSON.stringify(budgets));
+      return { message: 'Presupuesto eliminado' };
+    }
   }
 };
 
 window.setCurrentUser = setCurrentUser;
 window.getStorageKey = getLocalStorageKey;
+window.getBudgetKey = getBudgetKey;

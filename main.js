@@ -9,7 +9,7 @@ function navigateTo(page) {
     if (page === 'charts' && typeof charts !== 'undefined' && charts.resizeAll) {
         setTimeout(() => charts.resizeAll(), 50);
     }
-    if (page === 'budgets') setTimeout(() => loadBudgets(), 50);
+    if (page === 'budgets') setTimeout(() => loadBudgets().catch(() => {}), 50);
     if (window.innerWidth < 1024) {
         document.getElementById('sidebar')?.classList.remove('open');
         document.getElementById('sidebarOverlay')?.classList.remove('open');
@@ -1814,28 +1814,29 @@ function getBudgetKey() {
     return currentUser?.googleId ? `budgets_${currentUser.googleId}` : 'budgets';
 }
 
-function saveBudget(e) {
+async function saveBudget(e) {
     e.preventDefault();
     const category = document.getElementById('budgetCategory').value;
     const limit = parseCOP(document.getElementById('budgetLimit').value);
     if (!category || !limit) return false;
 
-    const budgets = JSON.parse(localStorage.getItem(getBudgetKey()) || '[]');
-    const existing = budgets.find(b => b.category === category);
-    if (existing) existing.limit = limit;
-    else budgets.push({ category, limit });
-
-    localStorage.setItem(getBudgetKey(), JSON.stringify(budgets));
-    document.getElementById('budgetForm').reset();
-    loadBudgets();
+    try {
+        await api.saveBudget(category, limit);
+        document.getElementById('budgetForm').reset();
+        await loadBudgets();
+    } catch (error) {
+        showInfoModal('Error', error.message);
+    }
     return false;
 }
 
-function deleteBudget(category) {
-    let budgets = JSON.parse(localStorage.getItem(getBudgetKey()) || '[]');
-    budgets = budgets.filter(b => b.category !== category);
-    localStorage.setItem(getBudgetKey(), JSON.stringify(budgets));
-    loadBudgets();
+async function deleteBudget(category) {
+    try {
+        await api.deleteBudget(category);
+        await loadBudgets();
+    } catch (error) {
+        showInfoModal('Error', error.message);
+    }
 }
 
 function getMonthSpending(category) {
@@ -1858,9 +1859,10 @@ function getMonthSpending(category) {
     } catch { return 0; }
 }
 
-function loadBudgets() {
+async function loadBudgets() {
     try {
-        const budgets = JSON.parse(localStorage.getItem(getBudgetKey()) || '[]');
+        const res = await api.getBudgets();
+        const budgets = res.data || [];
         const container = document.getElementById('budgetsList');
         const empty = document.getElementById('budgetsEmpty');
         if (!container || !empty) return;
@@ -1873,12 +1875,13 @@ function loadBudgets() {
         empty.classList.add('hidden');
 
         container.innerHTML = budgets.map(b => {
+            const limit = Number(b.limit_amount);
             const spent = getMonthSpending(b.category);
-            const pct = b.limit > 0 ? Math.min((spent / b.limit) * 100, 100) : 0;
+            const pct = limit > 0 ? Math.min((spent / limit) * 100, 100) : 0;
             const color = pct >= 100 ? 'bg-red-500' : pct >= 80 ? 'bg-yellow-400' : 'bg-emerald-500';
 
             return `
-                <div class="bg-white rounded-lg shadow-md p-5">
+                <div class="bg-white rounded-lg shadow-md p-5 mobile-p-3">
                     <div class="flex justify-between items-center mb-2">
                         <div>
                             <span class="font-bold text-gray-800">${b.category}</span>
@@ -1888,7 +1891,7 @@ function loadBudgets() {
                     </div>
                     <div class="flex justify-between text-sm text-gray-500 mb-2">
                         <span>$${spent.toLocaleString('es-CO')} gastados</span>
-                        <span>$${b.limit.toLocaleString('es-CO')} límite</span>
+                        <span>$${limit.toLocaleString('es-CO')} límite</span>
                     </div>
                     <div class="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
                         <div class="h-3 rounded-full ${color} transition-all duration-500" style="width: ${Math.min(pct, 100)}%"></div>

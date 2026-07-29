@@ -1,3 +1,64 @@
+// --- SIDEBAR NAVIGATION ---
+function navigateTo(page) {
+    document.querySelectorAll('.page-section').forEach(el => el.classList.add('page-section-hidden'));
+    document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+    const target = document.getElementById('section-' + page);
+    if (target) target.classList.remove('page-section-hidden');
+    const navBtn = document.querySelector(`.nav-item[data-page="${page}"]`);
+    if (navBtn) navBtn.classList.add('active');
+    if (page === 'charts' && typeof charts !== 'undefined' && charts.resizeAll) {
+        setTimeout(() => charts.resizeAll(), 50);
+    }
+    if (page === 'budgets') setTimeout(() => loadBudgets(), 50);
+    if (window.innerWidth < 1024) {
+        document.getElementById('sidebar')?.classList.remove('open');
+        document.getElementById('sidebarOverlay')?.classList.remove('open');
+    }
+}
+
+function toggleSidebar() {
+    document.getElementById('sidebar')?.classList.toggle('open');
+    document.getElementById('sidebarOverlay')?.classList.toggle('open');
+}
+
+function toggleSidebarCollapse() {
+    document.documentElement.classList.toggle('sidebar-collapsed');
+    const collapsed = document.documentElement.classList.contains('sidebar-collapsed');
+    localStorage.setItem('sidebarCollapsed', collapsed);
+    const btn = document.getElementById('sidebarCollapseBtn');
+    if (btn) btn.title = collapsed ? 'Expandir menú' : 'Colapsar menú';
+}
+
+// --- DARK MODE ---
+function updateDarkModeUI(isDark) {
+    const sw = document.getElementById('darkModeSwitch');
+    if (sw) {
+        sw.style.background = isDark ? '#059669' : '#d1d5db';
+        const thumb = document.getElementById('darkModeThumb');
+        if (thumb) {
+            thumb.style.transform = isDark ? 'translateX(28px)' : 'translateX(0)';
+            thumb.textContent = isDark ? '🌙' : '☀️';
+        }
+    }
+}
+
+function toggleDarkMode() {
+    document.documentElement.classList.toggle('dark');
+    const isDark = document.documentElement.classList.contains('dark');
+    localStorage.setItem('darkMode', isDark);
+    updateDarkModeUI(isDark);
+    if (typeof charts !== 'undefined' && charts.applyDarkMode) charts.applyDarkMode();
+}
+
+function applyDarkModePreference() {
+    const saved = localStorage.getItem('darkMode');
+    if (saved === 'true') {
+        document.documentElement.classList.add('dark');
+        updateDarkModeUI(true);
+        setTimeout(() => { if (typeof charts !== 'undefined' && charts.applyDarkMode) charts.applyDarkMode(); }, 100);
+    }
+}
+
 // --- AUTENTICACIÓN ---
 let currentUser = null;
 let authHandled = false;
@@ -7,16 +68,6 @@ function decodeJWT(token) {
         const base64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
         return JSON.parse(atob(base64));
     } catch { return null; }
-}
-
-function clearBalanceSummary() {
-    document.getElementById('incomeAmount').textContent = '$0';
-    document.getElementById('expenseAmount').textContent = '$0';
-    document.getElementById('balanceAmount').textContent = '$0';
-    document.getElementById('balanceAmount').className = 'text-2xl font-bold text-gray-600';
-    document.getElementById('incomeChange').textContent = '';
-    document.getElementById('expenseChange').textContent = '';
-    document.getElementById('balanceLabel').textContent = '';
 }
 
 function handleCredentialResponse(response) {
@@ -39,6 +90,120 @@ function handleCredentialResponse(response) {
     loadDataAndCharts();
 }
 
+function renderGoogleButton() {
+    function tryRender() {
+        if (typeof google !== 'undefined' && google.accounts) {
+            const container = document.getElementById('googleButton');
+            if (!container) return;
+            google.accounts.id.initialize({
+                client_id: '773029421346-7poodvv0qoaodrco0e0tlmvi9uf52626.apps.googleusercontent.com',
+                callback: handleCredentialResponse
+            });
+            container.innerHTML = '';
+            google.accounts.id.renderButton(
+                container,
+                { type: 'standard', shape: 'pill', theme: 'outline', size: 'large', text: 'signin_with', logo_alignment: 'left' }
+            );
+        } else {
+            setTimeout(tryRender, 200);
+        }
+    }
+    tryRender();
+}
+
+function clearBalanceSummary() {
+    document.getElementById('incomeAmount').textContent = '$0';
+    document.getElementById('expenseAmount').textContent = '$0';
+    document.getElementById('balanceAmount').textContent = '$0';
+    document.getElementById('balanceAmount').className = 'text-2xl font-bold text-gray-600';
+    document.getElementById('incomeChange').textContent = '';
+    document.getElementById('expenseChange').textContent = '';
+    document.getElementById('balanceLabel').textContent = '';
+}
+
+async function sendLoginCode() {
+    const email = document.getElementById('loginEmail').value.trim();
+    const errorEl = document.getElementById('loginEmailError');
+    const btn = document.getElementById('sendCodeBtn');
+    if (!email || !email.includes('@')) {
+        errorEl.textContent = 'Ingresa un correo válido';
+        errorEl.classList.remove('hidden');
+        return;
+    }
+    errorEl.classList.add('hidden');
+    btn.disabled = true;
+    btn.textContent = 'Enviando...';
+    try {
+        const res = await fetch('http://localhost:3000/api/auth/send-code', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email })
+        });
+        if (!res.ok) throw new Error('Error al enviar código');
+        document.getElementById('loginDisplayEmail').textContent = email;
+        document.getElementById('loginStepEmail').classList.add('hidden');
+        document.getElementById('loginStepCode').classList.remove('hidden');
+        document.getElementById('loginCode').value = '';
+        document.getElementById('loginCodeError').classList.add('hidden');
+    } catch (e) {
+        errorEl.textContent = 'No se pudo enviar el código. ¿El backend está corriendo?';
+        errorEl.classList.remove('hidden');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Enviar código';
+    }
+}
+
+async function verifyLoginCode() {
+    const email = document.getElementById('loginDisplayEmail').textContent;
+    const code = document.getElementById('loginCode').value.trim();
+    const errorEl = document.getElementById('loginCodeError');
+    const btn = document.getElementById('verifyCodeBtn');
+    if (!code || code.length < 6) {
+        errorEl.textContent = 'Ingresa el código de 6 dígitos';
+        errorEl.classList.remove('hidden');
+        return;
+    }
+    errorEl.classList.add('hidden');
+    btn.disabled = true;
+    btn.textContent = 'Verificando...';
+    try {
+        const res = await fetch('http://localhost:3000/api/auth/verify-code', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, code })
+        });
+        if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.error || 'Código incorrecto');
+        }
+        const data = await res.json();
+        currentUser = {
+            googleId: data.user_id,
+            name: data.name,
+            email: data.email,
+            picture: null
+        };
+        localStorage.setItem('current_user', JSON.stringify(currentUser));
+        setCurrentUser(currentUser.googleId);
+        showApp();
+        setupAppListeners();
+        loadDataAndCharts();
+    } catch (e) {
+        errorEl.textContent = e.message;
+        errorEl.classList.remove('hidden');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Ingresar';
+    }
+}
+
+function backToEmail() {
+    document.getElementById('loginStepCode').classList.add('hidden');
+    document.getElementById('loginStepEmail').classList.remove('hidden');
+    document.getElementById('loginEmailError').classList.add('hidden');
+}
+
 function showApp() {
     currentTransactions = [];
     currentFilteredTransactions = [];
@@ -46,12 +211,8 @@ function showApp() {
     document.getElementById('loginScreen').classList.add('hidden');
     document.getElementById('appContent').classList.remove('hidden');
     renderAvatar();
+    navigateTo('dashboard');
     if (typeof initializeFilters === 'function') initializeFilters();
-}
-
-function showLogin() {
-    document.getElementById('loginScreen').classList.remove('hidden');
-    document.getElementById('appContent').classList.add('hidden');
 }
 
 function renderAvatar() {
@@ -100,7 +261,14 @@ function logout() {
             currentFilteredTransactions = [];
             clearBalanceSummary();
             if (charts && typeof charts.clearCharts === 'function') charts.clearCharts();
-            showLogin();
+            document.getElementById('loginStepCode').classList.add('hidden');
+            document.getElementById('loginStepEmail').classList.remove('hidden');
+            document.getElementById('loginEmail').value = '';
+            document.getElementById('loginEmailError').classList.add('hidden');
+            authHandled = false;
+            document.querySelectorAll('.page-section').forEach(el => el.classList.add('page-section-hidden'));
+            document.getElementById('loginScreen').classList.remove('hidden');
+            document.getElementById('appContent').classList.add('hidden');
             renderGoogleButton();
         },
         false
@@ -125,24 +293,6 @@ function saveProfile() {
     document.getElementById('profileModal').style.display = 'none';
     showInfoModal('Éxito', 'Perfil actualizado correctamente');
 }
-
-function renderGoogleButton() {
-    function tryRender() {
-        if (typeof google !== 'undefined' && google.accounts) {
-            const container = document.getElementById('googleButton');
-            container.innerHTML = '';
-            google.accounts.id.renderButton(
-                container,
-                { type: 'standard', shape: 'pill', theme: 'outline', size: 'large', text: 'signin_with', logo_alignment: 'left' }
-            );
-        } else {
-            setTimeout(tryRender, 200);
-        }
-    }
-    tryRender();
-}
-
-// --- FIN AUTENTICACIÓN ---
 
 const charts = new FinanceCharts();
 let currentTransactions = [];
@@ -1557,6 +1707,13 @@ function setupAppListeners() {
         el.value = formatted;
     });
 
+    // Separadores de miles en presupuesto
+    const budgetLimitEl = document.getElementById('budgetLimit');
+    budgetLimitEl?.addEventListener('input', (e) => {
+        const el = e.target;
+        el.value = formatCOPInput(el.value);
+    });
+
     // Filtros
     const filterTypeEl = document.getElementById('filterType');
     const filterCategoryEl = document.getElementById('filterCategory');
@@ -1634,6 +1791,12 @@ function loadDataAndCharts() {
 }
 
 document.addEventListener('DOMContentLoaded', function () {
+    applyDarkModePreference();
+    if (localStorage.getItem('sidebarCollapsed') === 'true') {
+        document.documentElement.classList.add('sidebar-collapsed');
+        const btn = document.getElementById('sidebarCollapseBtn');
+        if (btn) btn.title = 'Expandir menú';
+    }
     const savedUser = localStorage.getItem('current_user');
     if (savedUser) {
         currentUser = JSON.parse(savedUser);
@@ -1642,9 +1805,100 @@ document.addEventListener('DOMContentLoaded', function () {
         setupAppListeners();
         loadDataAndCharts();
     } else {
-        showLogin();
         renderGoogleButton();
     }
 });
+
+// --- PRESUPUESTOS ---
+function getBudgetKey() {
+    return currentUser?.googleId ? `budgets_${currentUser.googleId}` : 'budgets';
+}
+
+function saveBudget(e) {
+    e.preventDefault();
+    const category = document.getElementById('budgetCategory').value;
+    const limit = parseCOP(document.getElementById('budgetLimit').value);
+    if (!category || !limit) return false;
+
+    const budgets = JSON.parse(localStorage.getItem(getBudgetKey()) || '[]');
+    const existing = budgets.find(b => b.category === category);
+    if (existing) existing.limit = limit;
+    else budgets.push({ category, limit });
+
+    localStorage.setItem(getBudgetKey(), JSON.stringify(budgets));
+    document.getElementById('budgetForm').reset();
+    loadBudgets();
+    return false;
+}
+
+function deleteBudget(category) {
+    let budgets = JSON.parse(localStorage.getItem(getBudgetKey()) || '[]');
+    budgets = budgets.filter(b => b.category !== category);
+    localStorage.setItem(getBudgetKey(), JSON.stringify(budgets));
+    loadBudgets();
+}
+
+function getMonthSpending(category) {
+    try {
+        const now = new Date();
+        const month = now.getMonth();
+        const year = now.getFullYear();
+        const transactions = (typeof currentTransactions !== 'undefined' && currentTransactions.length)
+            ? currentTransactions
+            : JSON.parse(localStorage.getItem(window.getStorageKey?.() || 'financial_transactions') || '[]');
+
+        return transactions
+            .filter(t => {
+                const d = new Date(t.date?.split('T')[0] || t.date);
+                return d.getMonth() === month && d.getFullYear() === year
+                    && t.type === 'expense'
+                    && t.category === category;
+            })
+            .reduce((sum, t) => sum + Number(t.amount), 0);
+    } catch { return 0; }
+}
+
+function loadBudgets() {
+    try {
+        const budgets = JSON.parse(localStorage.getItem(getBudgetKey()) || '[]');
+        const container = document.getElementById('budgetsList');
+        const empty = document.getElementById('budgetsEmpty');
+        if (!container || !empty) return;
+
+        if (budgets.length === 0) {
+            container.innerHTML = '';
+            empty.classList.remove('hidden');
+            return;
+        }
+        empty.classList.add('hidden');
+
+        container.innerHTML = budgets.map(b => {
+            const spent = getMonthSpending(b.category);
+            const pct = b.limit > 0 ? Math.min((spent / b.limit) * 100, 100) : 0;
+            const color = pct >= 100 ? 'bg-red-500' : pct >= 80 ? 'bg-yellow-400' : 'bg-emerald-500';
+
+            return `
+                <div class="bg-white rounded-lg shadow-md p-5">
+                    <div class="flex justify-between items-center mb-2">
+                        <div>
+                            <span class="font-bold text-gray-800">${b.category}</span>
+                            <span class="text-sm text-gray-400 ml-2">${pct >= 100 ? '¡Excedido!' : ''}</span>
+                        </div>
+                        <button onclick="deleteBudget('${b.category}')" class="text-red-400 hover:text-red-600 text-sm">Eliminar</button>
+                    </div>
+                    <div class="flex justify-between text-sm text-gray-500 mb-2">
+                        <span>$${spent.toLocaleString('es-CO')} gastados</span>
+                        <span>$${b.limit.toLocaleString('es-CO')} límite</span>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+                        <div class="h-3 rounded-full ${color} transition-all duration-500" style="width: ${Math.min(pct, 100)}%"></div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    } catch (e) {
+        console.error('Error loading budgets:', e);
+    }
+}
 
 // Cargar transacciones al iniciar (se hace dentro de DOMContentLoaded)

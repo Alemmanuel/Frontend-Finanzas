@@ -1,4 +1,18 @@
 class FinanceCharts {
+    static isDark() {
+        return document.documentElement.classList.contains('dark');
+    }
+
+    static chartColor(light, dark) {
+        return FinanceCharts.isDark() ? dark : light;
+    }
+
+    static get scaleDefaults() {
+        const color = FinanceCharts.chartColor('#6b7280', '#94a3b8');
+        const grid = FinanceCharts.chartColor('rgba(0,0,0,0.08)', 'rgba(255,255,255,0.08)');
+        return { color, grid };
+    }
+
     constructor() {
 
         this.balanceChart = null;
@@ -27,10 +41,19 @@ class FinanceCharts {
     
                 options: {
                     responsive: true,
-    
+                    scales: {
+                        x: {
+                            ticks: { color: FinanceCharts.scaleDefaults.color },
+                            grid: { color: FinanceCharts.scaleDefaults.grid }
+                        },
+                        y: {
+                            ticks: { color: FinanceCharts.scaleDefaults.color },
+                            grid: { color: FinanceCharts.scaleDefaults.grid }
+                        }
+                    },
                     plugins: {
                         legend: {
-                            display: true
+                            labels: { color: FinanceCharts.scaleDefaults.color }
                         }
                     }
                 }
@@ -89,6 +112,24 @@ class FinanceCharts {
                     borderColor: 'rgb(75, 192, 192)',
                     tension: 0.1
                 }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    x: {
+                        ticks: { color: FinanceCharts.scaleDefaults.color },
+                        grid: { color: FinanceCharts.scaleDefaults.grid }
+                    },
+                    y: {
+                        ticks: { color: FinanceCharts.scaleDefaults.color },
+                        grid: { color: FinanceCharts.scaleDefaults.grid }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        labels: { color: FinanceCharts.scaleDefaults.color }
+                    }
+                }
             }
         });
 
@@ -213,6 +254,9 @@ class FinanceCharts {
                     },
 
                     tooltip: {
+                        backgroundColor: FinanceCharts.chartColor('white', '#1e293b'),
+                        titleColor: FinanceCharts.chartColor('#111827', '#f1f5f9'),
+                        bodyColor: FinanceCharts.chartColor('#6b7280', '#94a3b8'),
                         callbacks: {
                             label: function (context) {
                                 const label = context.label || '';
@@ -560,10 +604,64 @@ class FinanceCharts {
 
                 options: {
                     responsive: true,
-                    maintainAspectRatio: false
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            ticks: { color: FinanceCharts.scaleDefaults.color },
+                            grid: { color: FinanceCharts.scaleDefaults.grid }
+                        },
+                        y: {
+                            ticks: { color: FinanceCharts.scaleDefaults.color },
+                            grid: { color: FinanceCharts.scaleDefaults.grid }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            labels: { color: FinanceCharts.scaleDefaults.color }
+                        }
+                    }
                 }
             }
         );
+    }
+
+    resizeAll() {
+        [this.balanceChart, this.distributionChart, this.historyChart].forEach(chart => {
+            if (chart) chart.resize();
+        });
+    }
+
+    applyDarkMode() {
+        const color = FinanceCharts.scaleDefaults.color;
+        const grid = FinanceCharts.scaleDefaults.grid;
+        const bg = FinanceCharts.chartColor('white', '#1e293b');
+        const titleColor = FinanceCharts.chartColor('#111827', '#f1f5f9');
+
+        [this.balanceChart, this.historyChart].forEach(chart => {
+            if (!chart) return;
+            if (chart.options.scales?.x) {
+                chart.options.scales.x.ticks.color = color;
+                chart.options.scales.x.grid.color = grid;
+            }
+            if (chart.options.scales?.y) {
+                chart.options.scales.y.ticks.color = color;
+                chart.options.scales.y.grid.color = grid;
+            }
+            if (chart.options.plugins?.legend?.labels) {
+                chart.options.plugins.legend.labels.color = color;
+            }
+            chart.update('none');
+        });
+
+        if (this.distributionChart) {
+            const tp = this.distributionChart.options.plugins?.tooltip;
+            if (tp) {
+                tp.backgroundColor = bg;
+                tp.titleColor = titleColor;
+                tp.bodyColor = color;
+            }
+            this.distributionChart.update('none');
+        }
     }
 
     clearCharts() {

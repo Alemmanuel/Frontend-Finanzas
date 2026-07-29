@@ -7,6 +7,11 @@
   <title>Control de Finanzas</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💰</text></svg>">
   <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    if (typeof tailwind !== 'undefined') {
+      tailwind.config = { darkMode: 'class' }
+    }
+  </script>
   <script src="https://accounts.google.com/gsi/client" async defer></script>
 
   <!-- Chart.js y dependencias -->
@@ -218,6 +223,164 @@
       font-size: 0.92rem;
       line-height: 1.4;
     }
+
+    /* --- SIDEBAR --- */
+    #sidebar {
+      position: fixed;
+      left: 0;
+      top: 0;
+      height: 100%;
+      width: 260px;
+      background: white;
+      box-shadow: 2px 0 8px rgba(0,0,0,0.06);
+      z-index: 30;
+      display: flex;
+      flex-direction: column;
+      transition: width 0.25s ease, transform 0.25s ease;
+      overflow: hidden;
+    }
+    @media (min-width: 1024px) {
+      #sidebar { transform: translateX(0) !important; }
+    }
+    .sidebar-collapsed #sidebar { width: 60px; }
+    .sidebar-collapsed #sidebar .sidebar-title { display: none; }
+    .sidebar-collapsed #sidebar .nav-item span { display: none; }
+    .sidebar-collapsed #sidebar .nav-item { justify-content: center; padding: 0.7rem 0; }
+    .sidebar-collapsed #sidebar .nav-item svg { margin: 0; }
+    .sidebar-collapsed #sidebar .px-5 { padding-left: 0.75rem; padding-right: 0.75rem; justify-content: center; }
+    .sidebar-collapsed #mainWrapper { margin-left: 60px; }
+    .sidebar-collapsed #sidebar .collapse-icon { transform: rotate(180deg); }
+    .dark #sidebar { background: #1e293b; border-right: 1px solid #334155; }
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      width: 100%;
+      padding: 0.7rem 1rem;
+      border-radius: 0.75rem;
+      font-size: 0.9rem;
+      font-weight: 500;
+      color: #4b5563;
+      transition: all 0.15s;
+      text-align: left;
+    }
+    .nav-item:hover { background: #f3f4f6; }
+    .dark .nav-item { color: #94a3b8; }
+    .dark .nav-item:hover { background: #334155; color: #e2e8f0; }
+    .nav-item.active { background: #d1fae5; color: #059669; font-weight: 600; }
+    .dark .nav-item.active { background: #064e3b; color: #34d399; }
+    .dark .nav-item svg { stroke: currentColor; }
+    #sidebarOverlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.4);
+      z-index: 29;
+    }
+    #mainWrapper {
+      margin-left: 260px;
+      min-height: 100vh;
+      max-width: calc(100vw - 260px);
+      overflow-x: hidden;
+    }
+    .sidebar-collapsed #mainWrapper {
+      max-width: calc(100vw - 60px);
+    }
+    html { overflow-x: hidden; }
+    body { overflow-x: hidden; }
+    @media (max-width: 1023px) {
+      #sidebar { transform: translateX(-100%); }
+      #sidebar.open { transform: translateX(0); }
+      #sidebarOverlay.open { display: block; }
+      #mainWrapper { margin-left: 0; }
+    }
+    .page-section { display: block; }
+    .page-section-hidden { display: none !important; }
+
+    /* --- DARK MODE --- */
+    .dark body { background: #0f172a; color: #e2e8f0; }
+    .dark .bg-white { background: #1e293b !important; }
+    .dark .text-gray-800 { color: #f1f5f9 !important; }
+    .dark .text-gray-700 { color: #e2e8f0 !important; }
+    .dark .text-gray-600 { color: #cbd5e1 !important; }
+    .dark .text-gray-500 { color: #94a3b8 !important; }
+    .dark .text-gray-400 { color: #64748b !important; }
+    .dark .border-gray-100 { border-color: #334155 !important; }
+    .dark .border-gray-200 { border-color: #334155 !important; }
+    .dark .border-gray-300 { border-color: #475569 !important; }
+    .dark .shadow-md { box-shadow: 0 4px 6px -1px rgba(0,0,0,0.4) !important; }
+    .dark .shadow-lg { box-shadow: 0 10px 15px -3px rgba(0,0,0,0.4) !important; }
+    .dark .hover\:bg-gray-50:hover { background: #334155 !important; }
+    .dark .hover\:bg-gray-100:hover { background: #334155 !important; }
+    .dark label { color: #cbd5e1; }
+    .dark select, .dark input, .dark textarea, .dark .border { background: #1e293b; color: #f1f5f9; border-color: #475569; }
+    .dark .modal-content { background: #1e293b; }
+    .dark .modal-content p { color: #94a3b8; }
+    .dark .close { color: #64748b; }
+    .dark .close:hover { color: #f1f5f9; }
+    .dark .btn-cancel { background: #334155; color: #e2e8f0; }
+    .dark .btn-cancel:hover { background: #475569; }
+    .dark .insight-card { background: #1e293b; border-color: #334155; }
+    .dark .insight-content h3 { color: #f1f5f9; }
+    .dark .insight-content p { color: #94a3b8; }
+    .dark .login-bg { background: #0f172a; }
+    .dark #avatarMenu { background: #1e293b; border-color: #334155; }
+    .dark #avatarMenu .border-b { border-color: #334155 !important; }
+    .dark .hover\:text-gray-600:hover { color: #cbd5e1 !important; }
+    .dark table, .dark th, .dark td { color: #e2e8f0; }
+    .dark .bg-gray-50 { background: #1e293b !important; }
+    .dark .bg-gray-100 { background: #1e293b !important; }
+    .dark .text-green-600 { color: #4ade80 !important; }
+    .dark .text-red-600 { color: #f87171 !important; }
+    .dark .text-emerald-500 { color: #34d399 !important; }
+    .dark .bg-green-100 { background: #064e3b !important; }
+    .dark .bg-red-100 { background: #7f1d1d !important; }
+    .dark .text-gray-900 { color: #f1f5f9 !important; }
+    .dark .file\:bg-blue-50 { background: #1e3a5f !important; }
+    .dark .file\:text-blue-700 { color: #60a5fa !important; }
+    .dark .hover\:file\:bg-blue-100:hover { background: #1e40af !important; }
+    .dark .bg-opacity-50 { background-color: rgba(0,0,0,0.7) !important; }
+    .dark .bg-emerald-500 { background: #059669 !important; }
+    .dark .bg-green-500 { background: #16a34a !important; }
+    .dark .bg-blue-500 { background: #2563eb !important; }
+    .dark .bg-red-500 { background: #dc2626 !important; }
+    .dark .bg-gray-200 { background: #374151 !important; }
+    .dark .text-red-500 { color: #fca5a5 !important; }
+    .dark .text-green-500 { color: #86efac !important; }
+    .dark .text-red-400 { color: #fca5a5 !important; }
+    .dark .text-emerald-600 { color: #34d399 !important; }
+    .dark .text-emerald-700 { color: #6ee7b7 !important; }
+    .dark .hover\:bg-emerald-600:hover { background: #047857 !important; }
+    .dark .hover\:bg-green-600:hover { background: #15803d !important; }
+    .dark .hover\:bg-blue-600:hover { background: #1d4ed8 !important; }
+    .dark .hover\:bg-red-600:hover { background: #b91c1c !important; }
+    .dark .hover\:bg-red-700:hover { background: #991b1b !important; }
+    .dark .hover\:bg-green-700:hover { background: #15803d !important; }
+    .dark .hover\:bg-gray-200:hover { background: #4b5563 !important; }
+    .dark .hover\:bg-gray-300:hover { background: #4b5563 !important; }
+    .dark .border-emerald-500 { border-color: #059669 !important; }
+    .dark .hover\:border-emerald-600:hover { border-color: #047857 !important; }
+    .dark .shadow-sm { box-shadow: 0 1px 2px 0 rgba(0,0,0,0.4) !important; }
+    .dark .focus\:ring-blue-300 { --tw-ring-color: #1d4ed8 !important; }
+    .dark .focus\:ring-gray-300 { --tw-ring-color: #4b5563 !important; }
+    .dark .bg-green-200 { background: #166534 !important; }
+    .dark .bg-green-300 { background: #15803d !important; }
+    .dark .bg-green-400 { background: #16a34a !important; }
+    .dark .bg-yellow-300 { background: #a16207 !important; }
+    .dark .bg-orange-400 { background: #c2410c !important; }
+    .dark .bg-emerald-100 { background: #064e3b !important; }
+    .dark .ring-emerald-500 { --tw-ring-color: #059669 !important; }
+    .dark .hover\:ring-emerald-400:hover { --tw-ring-color: #34d399 !important; }
+    .dark .hover\:text-emerald-800:hover { color: #6ee7b7 !important; }
+    .dark .hover\:text-red-800:hover { color: #fca5a5 !important; }
+    .dark .border-b { border-bottom-color: #334155 !important; }
+    .dark #sidebar .border-b { border-color: #334155 !important; }
+    .dark #sidebar .border-t { border-color: #334155 !important; }
+    .dark #sidebar .bg-gray-50 { background: #1e293b !important; }
+    .dark .bg-yellow-400 { background: #a16207 !important; }
+    .dark .insight-warning { background: #78350f !important; color: #fbbf24 !important; }
+    .dark .insight-success { background: #064e3b !important; color: #4ade80 !important; }
+    .dark .insight-danger { background: #7f1d1d !important; color: #f87171 !important; }
+    .dark .insight-info { background: #1e3a5f !important; color: #60a5fa !important; }
   </style>
 </head>
 
@@ -228,27 +391,92 @@
     <div class="bg-white rounded-xl shadow-lg p-8 w-full max-w-sm mx-4 text-center">
       <div class="text-4xl mb-3">💰</div>
       <h1 class="text-2xl font-bold text-gray-800 mb-1">Control de Finanzas</h1>
-      <p class="text-sm text-gray-500 mb-6">Inicia sesión para continuar</p>
-      <div id="g_id_onload"
-        data-client_id="773029421346-7poodvv0qoaodrco0e0tlmvi9uf52626.apps.googleusercontent.com"
-        data-context="signin"
-        data-ux_mode="popup"
-        data-callback="handleCredentialResponse"
-        data-auto_prompt="false">
+
+      <div id="loginStepEmail">
+        <p class="text-sm text-gray-500 mb-4">Ingresa tu correo para recibir un código</p>
+        <input id="loginEmail" type="email" placeholder="tu@correo.com" class="w-full p-3 border rounded-lg mb-3 text-center text-lg" />
+        <button onclick="sendLoginCode()" class="w-full bg-emerald-500 text-white py-3 rounded-lg hover:bg-emerald-600 font-semibold" id="sendCodeBtn">
+          Enviar código
+        </button>
+        <p id="loginEmailError" class="text-red-500 text-sm mt-2 hidden"></p>
+
+        <div class="flex items-center gap-2 my-4">
+          <div class="flex-1 border-t border-gray-300"></div>
+          <span class="text-gray-400 text-sm">o</span>
+          <div class="flex-1 border-t border-gray-300"></div>
+        </div>
+
+        <div id="googleButton" class="flex justify-center mb-2"></div>
       </div>
-      <div id="googleButton" class="flex justify-center"></div>
+
+      <div id="loginStepCode" class="hidden">
+        <p class="text-sm text-gray-500 mb-1">Te enviamos un código a</p>
+        <p id="loginDisplayEmail" class="font-semibold text-gray-700 mb-4"></p>
+        <input id="loginCode" type="text" inputmode="numeric" placeholder="000000" maxlength="6" class="w-full p-3 border rounded-lg mb-3 text-center text-2xl tracking-[0.5em]" />
+        <button onclick="verifyLoginCode()" class="w-full bg-emerald-500 text-white py-3 rounded-lg hover:bg-emerald-600 font-semibold" id="verifyCodeBtn">
+          Ingresar
+        </button>
+        <p id="loginCodeError" class="text-red-500 text-sm mt-2 hidden"></p>
+        <button onclick="backToEmail()" class="mt-3 text-sm text-gray-400 hover:text-gray-600">
+          Cambiar correo
+        </button>
+      </div>
     </div>
   </div>
 
 
+  <!-- SIDEBAR -->
+  <div id="sidebar" class="hidden">
+    <div class="flex items-center gap-3 px-5 py-4 border-b border-gray-100">
+      <span class="text-2xl">💰</span>
+      <span class="font-bold text-lg sidebar-title">Finanzas</span>
+    </div>
+    <nav class="p-3 space-y-1 flex-1 overflow-y-auto">
+      <button onclick="navigateTo('dashboard')" class="nav-item active" data-page="dashboard">
+        <svg class="w-5 h-5 min-w-[20px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+        <span>Dashboard</span>
+      </button>
+      <button onclick="navigateTo('transactions')" class="nav-item" data-page="transactions">
+        <svg class="w-5 h-5 min-w-[20px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+        <span>Transacciones</span>
+      </button>
+      <button onclick="navigateTo('charts')" class="nav-item" data-page="charts">
+        <svg class="w-5 h-5 min-w-[20px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+        <span>Reportes</span>
+      </button>
+      <button onclick="navigateTo('budgets')" class="nav-item" data-page="budgets">
+        <svg class="w-5 h-5 min-w-[20px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        <span>Presupuestos</span>
+      </button>
+    </nav>
+    <div class="border-t border-gray-100 p-3 space-y-1">
+      <button onclick="navigateTo('settings')" class="nav-item w-full" data-page="settings">
+        <svg class="w-5 h-5 min-w-[20px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+        <span>Configuración</span>
+      </button>
+      <button onclick="toggleSidebarCollapse()" class="nav-item w-full" id="sidebarCollapseBtn" title="Colapsar menú">
+        <svg class="w-5 h-5 min-w-[20px] collapse-icon transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7"/></svg>
+        <span>Colapsar</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- OVERLAY (for mobile sidebar) -->
+  <div id="sidebarOverlay" class="hidden" onclick="toggleSidebar()"></div>
+
   <!-- APLICACIÓN -->
   <div id="appContent" class="hidden">
-  <div class="container mx-auto px-4 py-8">
+  <div id="mainWrapper" class="container mx-auto px-4 py-8">
     <!-- Encabezado con avatar -->
     <div class="flex justify-between items-center mb-4">
-      <h2 class="text-2xl font-bold">Control de Finanzas</h2>
+      <div class="flex items-center gap-3">
+        <button id="sidebarToggle" onclick="toggleSidebar()" class="w-10 h-10 rounded-lg flex items-center justify-center hover:bg-gray-100 transition-colors text-gray-600 lg:hidden">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+        </button>
+        <h2 class="text-2xl font-bold">Control de Finanzas</h2>
+      </div>
       <div class="flex items-center space-x-4">
-        <button onclick="abrirModalImportar()" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">
+        <button onclick="abrirModalImportar()" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 hidden sm:inline">
           Importar desde Excel
         </button>
         <div class="relative" id="avatarContainer">
@@ -274,186 +502,103 @@
       </div>
     </div>
 
-    <!-- Tarjetas de resumen -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-      <div class="bg-white rounded-lg shadow-md p-5">
-        <div class="flex items-center justify-between mb-1">
-          <span class="text-sm font-medium text-gray-500">Ingresos</span>
-          <span id="incomeChange" class="text-xs font-semibold text-green-500"></span>
+    <!-- SECTION: DASHBOARD -->
+    <div id="section-dashboard" class="page-section">
+      <!-- Tarjetas de resumen -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <div class="bg-white rounded-lg shadow-md p-5">
+          <div class="flex items-center justify-between mb-1">
+            <span class="text-sm font-medium text-gray-500">Ingresos</span>
+            <span id="incomeChange" class="text-xs font-semibold text-green-500"></span>
+          </div>
+          <div class="text-2xl font-bold text-green-600" id="incomeAmount">$0</div>
         </div>
-        <div class="text-2xl font-bold text-green-600" id="incomeAmount">$0</div>
-      </div>
-      <div class="bg-white rounded-lg shadow-md p-5">
-        <div class="flex items-center justify-between mb-1">
-          <span class="text-sm font-medium text-gray-500">Gastos</span>
-          <span id="expenseChange" class="text-xs font-semibold text-red-500"></span>
+        <div class="bg-white rounded-lg shadow-md p-5">
+          <div class="flex items-center justify-between mb-1">
+            <span class="text-sm font-medium text-gray-500">Gastos</span>
+            <span id="expenseChange" class="text-xs font-semibold text-red-500"></span>
+          </div>
+          <div class="text-2xl font-bold text-red-600" id="expenseAmount">$0</div>
         </div>
-        <div class="text-2xl font-bold text-red-600" id="expenseAmount">$0</div>
-      </div>
-      <div class="bg-white rounded-lg shadow-md p-5">
-        <div class="flex items-center justify-between mb-1">
-          <span class="text-sm font-medium text-gray-500">Balance</span>
-          <span id="balanceLabel" class="text-xs font-semibold text-emerald-500"></span>
-        </div>
-        <div class="text-2xl font-bold" id="balanceAmount">$0</div>
-      </div>
-    </div>
-
-    <!-- Calendario de calor de gastos -->
-    <div class="bg-white rounded-lg shadow-md p-5 mb-6">
-      <div class="flex items-center justify-between mb-4">
-        <h3 class="text-lg font-bold text-gray-800">Calor de Gastos</h3>
-        <div class="flex items-center gap-3">
-          <button onclick="calendarPrevMonth()" class="p-1 hover:bg-gray-100 rounded transition-colors">
-            <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
-          </button>
-          <span id="calendarMonthLabel" class="text-sm font-semibold text-gray-700 w-32 text-center"></span>
-          <button onclick="calendarNextMonth()" class="p-1 hover:bg-gray-100 rounded transition-colors">
-            <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-          </button>
-        </div>
-      </div>
-      <div class="grid grid-cols-7 gap-1 text-center text-xs font-semibold text-gray-400 mb-1">
-        <div>L</div><div>M</div><div>M</div><div>J</div><div>V</div><div class="text-red-400">S</div><div class="text-red-400">D</div>
-      </div>
-      <div id="calendarGrid" class="grid grid-cols-7 gap-1"></div>
-      <div class="flex items-center justify-end gap-2 mt-3 text-xs text-gray-400">
-        <span>Menos</span>
-        <div class="flex gap-0.5">
-          <div class="w-4 h-4 rounded bg-gray-100"></div>
-          <div class="w-4 h-4 rounded bg-green-200"></div>
-          <div class="w-4 h-4 rounded bg-green-400"></div>
-          <div class="w-4 h-4 rounded bg-yellow-300"></div>
-          <div class="w-4 h-4 rounded bg-orange-400"></div>
-          <div class="w-4 h-4 rounded bg-red-500"></div>
-        </div>
-        <span>Más</span>
-      </div>
-    </div>
-
-    <!-- Formulario de registro -->
-    <div class="bg-white rounded-lg shadow-md p-6 mb-6">
-      <h2 class="text-2xl font-bold mb-4">Registrar Transacción</h2>
-      <form id="transactionForm" class="space-y-4">
-        <div>
-          <label class="block mb-1">Tipo:</label>
-          <select id="type" class="w-full p-2 border rounded">
-            <option value="income">Ingreso</option>
-            <option value="expense">Gasto</option>
-          </select>
-        </div>
-        <div>
-          <label class="block mb-1">Monto:</label>
-          <input type="text" id="amount" inputmode="numeric" autocomplete="off" placeholder="0"
-            class="w-full p-2 border rounded" required />
-        </div>
-        <div>
-          <label class="block mb-1">Descripción:</label>
-          <input type="text" id="description" class="w-full p-2 border rounded" required />
-        </div>
-        <div id="categoryField">
-          <label class="block mb-1">Categoría:</label>
-          <select id="category" class="w-full p-2 border rounded">
-            <option value="" selected>Selecciona una categoría</option>
-            <option value="Mercado">Mercado</option>
-            <option value="Bancos">Bancos</option>
-            <option value="Entretenimiento">Entretenimiento</option>
-            <option value="Transporte">Transporte</option>
-            <option value="Salud">Salud</option>
-            <option value="Hogar">Hogar</option>
-            <option value="Mensualidades">Mensualidades</option>
-            <option value="Comida">Comida</option>
-            <option value="Servicios">Servicios</option>
-          </select>
-        </div>
-        <button type="submit" class="w-full bg-blue-500 text-white py-2 rounded hover:bg-blue-600">
-          Registrar
-        </button>
-      </form>
-    </div>
-
-
-    <!-- ALERTAS INTELIGENTES -->
-    <div class="bg-white rounded-2xl shadow-lg p-6 mb-8">
-
-      <div class="flex items-center justify-between mb-5 gap-4">
-        <div class="flex-1 text-center">
-          <h2 class="text-2xl font-bold text-gray-800">
-            Insights Financieros
-          </h2>
-
-          <p class="text-gray-500 text-sm">
-            Análisis inteligente de tus movimientos financieros
-          </p>
-        </div>
-
-        <div class="bg-emerald-100 text-emerald-700 px-4 py-2 rounded-xl text-sm font-semibold">
-          IA Finance
+        <div class="bg-white rounded-lg shadow-md p-5">
+          <div class="flex items-center justify-between mb-1">
+            <span class="text-sm font-medium text-gray-500">Balance</span>
+            <span id="balanceLabel" class="text-xs font-semibold text-emerald-500"></span>
+          </div>
+          <div class="text-2xl font-bold" id="balanceAmount">$0</div>
         </div>
       </div>
 
-      <div id="financialInsights" class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-      </div>
-
-    </div>
-
-    <!-- Gráficas -->
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-      <div class="bg-white rounded-lg shadow-md p-6">
-        <h3 class="text-xl font-bold mb-4">Balance General</h3>
-        <canvas id="balanceChart"></canvas>
-        <div id="topCategoriesContainer" class="mt-6">
-          <h4 class="text-lg font-bold mb-4">
-            Top 5 categorías de este mes
-          </h4>
-
-          <div id="topCategoriesList" class="space-y-4">
+      <!-- Calendario de calor de gastos -->
+      <div class="bg-white rounded-lg shadow-md p-5 mb-6">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-lg font-bold text-gray-800">Calor de Gastos</h3>
+          <div class="flex items-center gap-3">
+            <button onclick="calendarPrevMonth()" class="p-1 hover:bg-gray-100 rounded transition-colors">
+              <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+            </button>
+            <span id="calendarMonthLabel" class="text-sm font-semibold text-gray-700 w-32 text-center"></span>
+            <button onclick="calendarNextMonth()" class="p-1 hover:bg-gray-100 rounded transition-colors">
+              <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+            </button>
           </div>
         </div>
-      </div>
-      <div class="bg-white rounded-lg shadow-md p-6">
-        <div class="flex justify-between items-center mb-4">
-          <h3 class="text-xl font-bold">Distribución</h3>
-          <select id="distributionRange" class="border rounded-lg px-3 py-2 text-sm">
-            <option value="currentCycle">
-              Ciclo actual
-            </option>
-
-            <option value="all">
-              Histórico total
-            </option>
-
-            <option value="3cycles">
-              Últimos 3 ciclos
-            </option>
-
-            <option value="6cycles">
-              Últimos 6 ciclos
-            </option>
-
-            <option value="year">
-              Este año
-            </option>
-          </select>
+        <div class="grid grid-cols-7 gap-1 text-center text-xs font-semibold text-gray-400 mb-1">
+          <div>L</div><div>M</div><div>M</div><div>J</div><div>V</div><div class="text-red-400">S</div><div class="text-red-400">D</div>
         </div>
-        <div id="categoryLegend" class="mb-4 text-sm text-gray-700"></div>
-        <canvas id="distributionChart"></canvas>
+        <div id="calendarGrid" class="grid grid-cols-7 gap-1"></div>
+        <div class="flex items-center justify-end gap-2 mt-3 text-xs text-gray-400">
+          <span>Menos</span>
+          <div class="flex gap-0.5">
+            <div class="w-4 h-4 rounded bg-gray-100"></div>
+            <div class="w-4 h-4 rounded bg-green-200"></div>
+            <div class="w-4 h-4 rounded bg-green-400"></div>
+            <div class="w-4 h-4 rounded bg-yellow-300"></div>
+            <div class="w-4 h-4 rounded bg-orange-400"></div>
+            <div class="w-4 h-4 rounded bg-red-500"></div>
+          </div>
+          <span>Más</span>
+        </div>
       </div>
-      <!-- HISTÓRICO FINANCIERO -->
-      <div class="bg-white rounded-lg shadow-md p-6 md:col-span-2">
-        <h3 class="text-2xl font-bold mb-6">Histórico Financiero</h3>
 
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+      <!-- ALERTAS INTELIGENTES -->
+      <div class="bg-white rounded-2xl shadow-lg p-6 mb-8">
+        <div class="flex items-center justify-between mb-5 gap-4">
+          <div class="flex-1 text-center">
+            <h2 class="text-2xl font-bold text-gray-800">Insights Financieros</h2>
+            <p class="text-gray-500 text-sm">Análisis inteligente de tus movimientos financieros</p>
+          </div>
+          <div class="bg-emerald-100 text-emerald-700 px-4 py-2 rounded-xl text-sm font-semibold">IA Finance</div>
+        </div>
+        <div id="financialInsights" class="grid grid-cols-1 lg:grid-cols-2 gap-4"></div>
+      </div>
+    </div>
 
-          <!-- Categoría -->
+    <!-- SECTION: TRANSACTIONS -->
+    <div id="section-transactions" class="page-section page-section-hidden">
+      <!-- Formulario de registro -->
+      <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+        <h2 class="text-2xl font-bold mb-4">Registrar Transacción</h2>
+        <form id="transactionForm" class="space-y-4">
           <div>
-            <label class="block text-sm font-semibold mb-2">
-              Categoría
-            </label>
-
-            <select id="historyCategory" class="w-full border rounded-lg px-4 py-2">
-              <option value="all">Todos los gastos</option>
-              <option value="income">Ingresos</option>
+            <label class="block mb-1">Tipo:</label>
+            <select id="type" class="w-full p-2 border rounded">
+              <option value="income">Ingreso</option>
+              <option value="expense">Gasto</option>
+            </select>
+          </div>
+          <div>
+            <label class="block mb-1">Monto:</label>
+            <input type="text" id="amount" inputmode="numeric" autocomplete="off" placeholder="0" class="w-full p-2 border rounded" required />
+          </div>
+          <div>
+            <label class="block mb-1">Descripción:</label>
+            <input type="text" id="description" class="w-full p-2 border rounded" required />
+          </div>
+          <div id="categoryField">
+            <label class="block mb-1">Categoría:</label>
+            <select id="category" class="w-full p-2 border rounded">
+              <option value="" selected>Selecciona una categoría</option>
               <option value="Mercado">Mercado</option>
               <option value="Bancos">Bancos</option>
               <option value="Entretenimiento">Entretenimiento</option>
@@ -465,54 +610,147 @@
               <option value="Servicios">Servicios</option>
             </select>
           </div>
+          <button type="submit" class="w-full bg-blue-500 text-white py-2 rounded hover:bg-blue-600">Registrar</button>
+        </form>
+      </div>
 
-          <!-- Período -->
+      <!-- Filtros + Exportar -->
+      <div class="bg-white rounded-lg shadow-md p-6 mb-6 w-full">
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
           <div>
-            <label class="block text-sm font-semibold mb-2">
-              Período
-            </label>
-
-            <select id="historyPeriod" class="w-full border rounded-lg px-4 py-2">
-              <option value="monthly">Mensual</option>
-              <option value="yearly">Anual</option>
+            <label class="block text-xs font-medium mb-1">Tipo</label>
+            <select id="filterType" class="w-full p-2 border rounded text-sm">
+              <option value="all" selected>Todos</option>
+              <option value="income">Ingresos</option>
+              <option value="expense">Gastos</option>
             </select>
           </div>
-
-          <!-- Tipo gráfico -->
           <div>
-            <label class="block text-sm font-semibold mb-2">
-              Tipo de gráfico
-            </label>
-
-            <select id="historyChartType" class="w-full border rounded-lg px-4 py-2">
-              <option value="bar">Barras</option>
-              <option value="line">Línea</option>
+            <label class="block text-xs font-medium mb-1">Categoría</label>
+            <select id="filterCategory" class="w-full p-2 border rounded text-sm">
+              <option value="" selected>Todas</option>
+              <option value="Mercado">Mercado</option>
+              <option value="Bancos">Bancos</option>
+              <option value="Entretenimiento">Entretenimiento</option>
+              <option value="Transporte">Transporte</option>
+              <option value="Salud">Salud</option>
+              <option value="Hogar">Hogar</option>
+              <option value="Mensualidades">Mensualidades</option>
+              <option value="Comida">Comida</option>
+              <option value="Servicios">Servicios</option>
             </select>
           </div>
-
+          <div>
+            <label class="block text-xs font-medium mb-1">Descripción</label>
+            <input id="filterDescription" type="text" class="w-full p-2 border rounded text-sm" placeholder="Ej: gasolina..." />
+          </div>
         </div>
+        <div class="flex flex-wrap items-end justify-between gap-3 pt-3 border-t border-gray-100">
+          <div class="flex flex-wrap items-end gap-2">
+            <div>
+              <label class="block text-xs text-gray-400 mb-1">Exportar desde</label>
+              <input type="date" id="startDate" class="w-36 p-1.5 border rounded text-sm" />
+            </div>
+            <div>
+              <label class="block text-xs text-gray-400 mb-1">hasta</label>
+              <input type="date" id="endDate" class="w-36 p-1.5 border rounded text-sm" />
+            </div>
+            <button id="downloadPdf" class="bg-red-500 text-white px-3 py-1.5 rounded text-sm hover:bg-red-700">PDF</button>
+            <button id="downloadExcel" class="bg-green-500 text-white px-3 py-1.5 rounded text-sm hover:bg-green-700">Excel</button>
+          </div>
+          <button id="clearFilters" class="bg-gray-200 text-gray-800 px-3 py-1.5 rounded text-sm hover:bg-gray-300">Limpiar filtros</button>
+        </div>
+      </div>
+      <input type="hidden" id="calendarFilterDate" value="" />
 
-        <div class="w-full h-[500px]">
-          <canvas id="historyChart"></canvas>
+      <!-- Lista de transacciones (movida al final) -->
+      <div class="bg-white rounded-lg shadow-md p-6">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-xl font-bold">Registro de Transacciones</h3>
+          <button id="deleteSelectedBtn" onclick="deleteSelected()" class="bg-red-500 text-white px-3 py-1.5 rounded text-sm hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+            Eliminar seleccionadas
+          </button>
+        </div>
+      </div>
+      <div class="overflow-x-auto" id="groupedTransactions">
+        <!-- Las transacciones agrupadas se insertarán aquí -->
+      </div>
+    </div>
+
+    <!-- SECTION: CHARTS -->
+    <div id="section-charts" class="page-section page-section-hidden">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        <div class="bg-white rounded-lg shadow-md p-6">
+          <h3 class="text-xl font-bold mb-4">Balance General</h3>
+          <canvas id="balanceChart"></canvas>
+          <div id="topCategoriesContainer" class="mt-6">
+            <h4 class="text-lg font-bold mb-4">Top 5 categorías de este mes</h4>
+            <div id="topCategoriesList" class="space-y-4"></div>
+          </div>
+        </div>
+        <div class="bg-white rounded-lg shadow-md p-6">
+          <div class="flex justify-between items-center mb-4">
+            <h3 class="text-xl font-bold">Distribución</h3>
+            <select id="distributionRange" class="border rounded-lg px-3 py-2 text-sm">
+              <option value="currentCycle">Ciclo actual</option>
+              <option value="all">Histórico total</option>
+              <option value="3cycles">Últimos 3 ciclos</option>
+              <option value="6cycles">Últimos 6 ciclos</option>
+              <option value="year">Este año</option>
+            </select>
+          </div>
+          <div id="categoryLegend" class="mb-4 text-sm text-gray-700"></div>
+          <canvas id="distributionChart"></canvas>
+        </div>
+        <div class="bg-white rounded-lg shadow-md p-6 md:col-span-2">
+          <h3 class="text-2xl font-bold mb-6">Histórico Financiero</h3>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div>
+              <label class="block text-sm font-semibold mb-2">Categoría</label>
+              <select id="historyCategory" class="w-full border rounded-lg px-4 py-2">
+                <option value="all">Todos los gastos</option>
+                <option value="income">Ingresos</option>
+                <option value="Mercado">Mercado</option>
+                <option value="Bancos">Bancos</option>
+                <option value="Entretenimiento">Entretenimiento</option>
+                <option value="Transporte">Transporte</option>
+                <option value="Salud">Salud</option>
+                <option value="Hogar">Hogar</option>
+                <option value="Mensualidades">Mensualidades</option>
+                <option value="Comida">Comida</option>
+                <option value="Servicios">Servicios</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm font-semibold mb-2">Período</label>
+              <select id="historyPeriod" class="w-full border rounded-lg px-4 py-2">
+                <option value="monthly">Mensual</option>
+                <option value="yearly">Anual</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm font-semibold mb-2">Tipo de gráfico</label>
+              <select id="historyChartType" class="w-full border rounded-lg px-4 py-2">
+                <option value="bar">Barras</option>
+                <option value="line">Línea</option>
+              </select>
+            </div>
+          </div>
+          <div class="w-full h-[500px]">
+            <canvas id="historyChart"></canvas>
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- Filtros + Exportar -->
-    <div class="bg-white rounded-lg shadow-md p-6 mb-6 w-full">
-      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
-        <div>
-          <label class="block text-xs font-medium mb-1">Tipo</label>
-          <select id="filterType" class="w-full p-2 border rounded text-sm">
-            <option value="all" selected>Todos</option>
-            <option value="income">Ingresos</option>
-            <option value="expense">Gastos</option>
-          </select>
-        </div>
-        <div>
-          <label class="block text-xs font-medium mb-1">Categoría</label>
-          <select id="filterCategory" class="w-full p-2 border rounded text-sm">
-            <option value="" selected>Todas</option>
+    <!-- SECTION: BUDGETS -->
+    <div id="section-budgets" class="page-section page-section-hidden">
+      <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+        <h2 class="text-2xl font-bold mb-4">Presupuestos Mensuales</h2>
+        <p class="text-gray-500 text-sm mb-6">Define cuánto quieres gastar máximo por categoría cada mes.</p>
+        <form id="budgetForm" class="flex flex-col sm:flex-row gap-3" onsubmit="return saveBudget(event)">
+          <select id="budgetCategory" class="flex-1 p-2 border rounded text-sm" required>
+            <option value="">Categoría</option>
             <option value="Mercado">Mercado</option>
             <option value="Bancos">Bancos</option>
             <option value="Entretenimiento">Entretenimiento</option>
@@ -523,41 +761,51 @@
             <option value="Comida">Comida</option>
             <option value="Servicios">Servicios</option>
           </select>
-        </div>
-        <div>
-          <label class="block text-xs font-medium mb-1">Descripción</label>
-          <input id="filterDescription" type="text" class="w-full p-2 border rounded text-sm"
-            placeholder="Ej: gasolina..." />
-        </div>
+          <input type="text" id="budgetLimit" inputmode="numeric" placeholder="Límite $" class="sm:w-40 p-2 border rounded text-sm" required />
+          <button type="submit" class="bg-emerald-500 text-white px-5 py-2 rounded hover:bg-emerald-600 font-semibold text-sm whitespace-nowrap">
+            Crear
+          </button>
+        </form>
       </div>
-      <div class="flex flex-wrap items-end justify-between gap-3 pt-3 border-t border-gray-100">
-        <div class="flex flex-wrap items-end gap-2">
-          <div>
-            <label class="block text-xs text-gray-400 mb-1">Exportar desde</label>
-            <input type="date" id="startDate" class="w-36 p-1.5 border rounded text-sm" />
-          </div>
-          <div>
-            <label class="block text-xs text-gray-400 mb-1">hasta</label>
-            <input type="date" id="endDate" class="w-36 p-1.5 border rounded text-sm" />
-          </div>
-          <button id="downloadPdf" class="bg-red-500 text-white px-3 py-1.5 rounded text-sm hover:bg-red-700">PDF</button>
-          <button id="downloadExcel" class="bg-green-500 text-white px-3 py-1.5 rounded text-sm hover:bg-green-700">Excel</button>
-        </div>
-        <button id="clearFilters" class="bg-gray-200 text-gray-800 px-3 py-1.5 rounded text-sm hover:bg-gray-300">Limpiar filtros</button>
+
+      <div id="budgetsList" class="space-y-3">
+        <!-- Budgets rendered here -->
+      </div>
+
+      <div id="budgetsEmpty" class="bg-white rounded-lg shadow-md p-8 text-center hidden">
+        <div class="text-4xl mb-3">🎯</div>
+        <p class="text-gray-500">No tienes presupuestos aún.<br>Crea uno para empezar a controlar tus gastos.</p>
       </div>
     </div>
-    <input type="hidden" id="calendarFilterDate" value="" />
 
-    <!-- Lista de transacciones (movida al final) -->
-    <div class="bg-white rounded-lg shadow-md p-6">
-      <div class="flex justify-between items-center mb-4">
-        <h3 class="text-xl font-bold">Registro de Transacciones</h3>
-        <button id="deleteSelectedBtn" onclick="deleteSelected()" class="bg-red-500 text-white px-3 py-1.5 rounded text-sm hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
-          Eliminar seleccionadas
-        </button>
-      </div>
-      <div class="overflow-x-auto" id="groupedTransactions">
-        <!-- Las transacciones agrupadas se insertarán aquí -->
+    <!-- SECTION: SETTINGS -->
+    <div id="section-settings" class="page-section page-section-hidden">
+      <div class="bg-white rounded-lg shadow-md p-6">
+        <h2 class="text-2xl font-bold mb-6">Configuración</h2>
+
+        <div class="space-y-6">
+          <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+            <div>
+              <p class="font-semibold">Modo oscuro</p>
+              <p class="text-sm text-gray-500">Cambiar entre tema claro y oscuro</p>
+            </div>
+            <button onclick="toggleDarkMode()" class="relative w-14 h-7 rounded-full transition-colors duration-200 focus:outline-none" id="darkModeSwitch">
+              <div class="absolute left-1 top-1 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 flex items-center justify-center text-xs" id="darkModeThumb">
+                🌙
+              </div>
+            </button>
+          </div>
+
+          <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+            <div>
+              <p class="font-semibold">Perfil</p>
+              <p class="text-sm text-gray-500">Editar tu nombre de usuario</p>
+            </div>
+            <button onclick="openProfileModal()" class="bg-emerald-500 text-white px-4 py-2 rounded hover:bg-emerald-600">
+              Editar
+            </button>
+          </div>
+        </div>
       </div>
     </div>
 

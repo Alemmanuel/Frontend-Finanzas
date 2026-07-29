@@ -164,16 +164,11 @@ function esFechaValida(fechaString) {
 async function importarTransacciones(datos) {
     console.log('Datos a importar:', datos);
 
-    // Obtener las transacciones existentes del localStorage
-    const storedData = localStorage.getItem(getStorageKey());
-    const transacciones = storedData ? JSON.parse(storedData) : [];
-
     for (const fila of datos) {
         try {
             let fechaISO;
             
             if (typeof fila.fecha === 'number') {
-                // Convertir fecha de Excel a fecha UTC
                 const fecha = new Date((fila.fecha - 25569) * 86400 * 1000);
                 fechaISO = new Date(Date.UTC(
                     fecha.getFullYear(),
@@ -182,7 +177,6 @@ async function importarTransacciones(datos) {
                 )).toISOString().split('T')[0];
             } else if (typeof fila.fecha === 'string') {
                 const [dia, mes, anio] = fila.fecha.split('/');
-                // Crear fecha en UTC
                 fechaISO = new Date(Date.UTC(
                     parseInt(anio),
                     parseInt(mes) - 1,
@@ -204,26 +198,20 @@ async function importarTransacciones(datos) {
             }
 
             const tipoLower = fila.tipo.toString().toLowerCase().trim();
-            const tipo = tipoLower.includes('ingreso') ? 'income' : 'expense';
+            const tipo = tipoLower.includes('ingreso') ? 'Ingreso' : 'Gasto';
 
-            const nuevaTransaccion = {
-                id: Date.now() + Math.random(), // ID único
-                type: tipo,
-                amount: monto,
-                description: (fila.descripcion || '').toString().trim(),
-                date: fechaISO,
-                category: null
-            };
-
-            transacciones.push(nuevaTransaccion);
+            await api.addTransaction({
+                tipo: tipo,
+                monto: monto,
+                descripcion: (fila.descripcion || '').toString().trim(),
+                fecha: fechaISO,
+                categoria: null
+            });
         } catch (error) {
             console.error('Error detallado:', error);
             throw new Error(`Error en la fila "${fila.descripcion}": ${error.message}`);
         }
     }
-
-    // Guardar todas las transacciones de vuelta en localStorage
-    localStorage.setItem(getStorageKey(), JSON.stringify(transacciones));
     
     showInfoModal('Éxito', 'Importación completada exitosamente');
     loadTransactions();

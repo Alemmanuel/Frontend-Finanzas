@@ -404,9 +404,9 @@ class FinanceCharts {
             today.getDate()
         );
         function parseLocalDate(dateString) {
+            const datePart = dateString.split(' ')[0];
             const [year, month, day] =
-                dateString.split('-').map(Number);
-
+                datePart.split('-').map(Number);
             return new Date(year, month - 1, day);
         }
 

@@ -73,10 +73,10 @@ const api = {
     });
   },
 
-  async checkBudgetAlerts(email) {
+  async getBudgetStatus() {
     return apiFetch('/alerts/check-budgets', {
       method: 'POST',
-      body: JSON.stringify({ user_id: CURRENT_USER_ID, email })
+      body: JSON.stringify({ user_id: CURRENT_USER_ID })
     });
   },
 

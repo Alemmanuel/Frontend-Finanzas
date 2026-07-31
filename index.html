@@ -790,8 +790,8 @@
     <!-- SECTION: BUDGETS -->
     <div id="section-budgets" class="page-section page-section-hidden">
       <div class="bg-white rounded-lg shadow-md p-6 mb-6">
-        <h2 class="text-2xl font-bold mb-4">Presupuestos Mensuales</h2>
-        <p class="text-gray-500 text-sm mb-6">Define cuánto quieres gastar máximo por categoría cada mes.</p>
+        <h2 class="text-2xl font-bold mb-4">Presupuestos</h2>
+        <p class="text-gray-500 text-sm mb-6">Define cuánto quieres gastar máximo por categoría. El ciclo va del 25 de cada mes al 24 del siguiente.</p>
         <form id="budgetForm" class="flex flex-col sm:flex-row gap-3" onsubmit="return saveBudget(event)">
           <select id="budgetCategory" class="flex-1 p-2 border rounded text-sm" required>
             <option value="">Categoría</option>
@@ -811,6 +811,8 @@
           </button>
         </form>
       </div>
+
+      <div id="budgetAlertsBanner" class="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-r mb-4 space-y-1 hidden"></div>
 
       <div id="budgetsList" class="space-y-3">
         <!-- Budgets rendered here -->

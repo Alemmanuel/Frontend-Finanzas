@@ -1487,9 +1487,6 @@ document.getElementById('transactionForm').addEventListener('submit', async (e) 
                 showInfoModal('Éxito', 'Transacción registrada exitosamente.');
                 loadTransactions();
                 e.target.reset();
-                if (tipo === 'Gasto') {
-                    checkBudgetAlerts().catch(() => {});
-                }
             } catch (error) {
                 console.error('Error adding transaction:', error);
                 showInfoModal('Error', 'Error al registrar la transacción: ' + error.message);
@@ -1789,7 +1786,7 @@ function loadDataAndCharts() {
             charts.updateHistoryChart(currentTransactions);
         }
         loadCategories().catch(() => {});
-        checkBudgetAlerts().catch(() => {});
+        subscribeToPush();
         loadNotificationSettings().catch(() => {});
     });
 }
@@ -1992,18 +1989,6 @@ async function subscribeToPush() {
     }
 }
 
-async function checkBudgetAlerts() {
-    if (!currentUser) return;
-    if (currentUser.email) {
-        try {
-            await api.checkBudgetAlerts(currentUser.email);
-        } catch (err) {
-            console.error('Error checking budget alerts:', err);
-        }
-    }
-    subscribeToPush();
-}
-
 // --- AJUSTES DE RECORDATORIOS ---
 
 const reminderKeys = { daily: 'daily_enabled', weekly: 'weekly_enabled', inactivity: 'inactivity_enabled' };
@@ -2075,17 +2060,23 @@ async function deleteBudget(category) {
     }
 }
 
-function getMonthSpending(category) {
+function getCycleStart() {
+    const now = new Date();
+    if (now.getDate() >= 25) {
+        return new Date(now.getFullYear(), now.getMonth(), 25);
+    }
+    return new Date(now.getFullYear(), now.getMonth() - 1, 25);
+}
+
+function getCycleSpending(category) {
     try {
-        const now = new Date();
-        const month = now.getMonth();
-        const year = now.getFullYear();
+        const start = getCycleStart();
         const transactions = currentTransactions || [];
 
         return transactions
             .filter(t => {
                 const d = new Date(t.date?.split('T')[0] || t.date);
-                return d.getMonth() === month && d.getFullYear() === year
+                return d >= start
                     && t.type === 'expense'
                     && t.category === category;
             })
@@ -2099,7 +2090,33 @@ async function loadBudgets() {
         const budgets = res.data || [];
         const container = document.getElementById('budgetsList');
         const empty = document.getElementById('budgetsEmpty');
+        const banner = document.getElementById('budgetAlertsBanner');
         if (!container || !empty) return;
+
+        let alerts = [];
+        try {
+            const status = await api.getBudgetStatus();
+            alerts = status.alerts || [];
+        } catch (e) {
+            console.error('Error loading budget status:', e);
+        }
+
+        if (banner) {
+            if (alerts.length === 0) {
+                banner.classList.add('hidden');
+                banner.innerHTML = '';
+            } else {
+                banner.innerHTML = alerts.map(a => {
+                    const isExceeded = a.level === 'exceeded';
+                    return `
+                        <div class="text-sm font-semibold ${isExceeded ? 'text-red-600' : 'text-yellow-600'}">
+                            ${isExceeded ? '🔴' : '⚠️'} ${a.category}: ${Math.round(a.pct)}% ($${Number(a.spent).toLocaleString('es-CO')} de $${Number(a.limit).toLocaleString('es-CO')})
+                            <span class="font-normal ${isExceeded ? 'text-red-500' : 'text-yellow-500'}">${isExceeded ? '· ¡Se pasó del límite!' : '· Casi llegas al límite'}</span>
+                        </div>`;
+                }).join('');
+                banner.classList.remove('hidden');
+            }
+        }
 
         if (budgets.length === 0) {
             container.innerHTML = '';
@@ -2110,7 +2127,7 @@ async function loadBudgets() {
 
         container.innerHTML = budgets.map(b => {
             const limit = Number(b.limit_amount);
-            const spent = getMonthSpending(b.category);
+            const spent = getCycleSpending(b.category);
             const pct = limit > 0 ? Math.min((spent / limit) * 100, 100) : 0;
             const color = pct >= 100 ? 'bg-red-500' : pct >= 80 ? 'bg-yellow-400' : 'bg-emerald-500';
 

@@ -71,6 +71,31 @@ const api = {
     return apiFetch(`/budgets/${encodeURIComponent(category)}?user_id=${CURRENT_USER_ID}`, {
       method: 'DELETE'
     });
+  },
+
+  async checkBudgetAlerts(email) {
+    return apiFetch('/alerts/check-budgets', {
+      method: 'POST',
+      body: JSON.stringify({ user_id: CURRENT_USER_ID, email })
+    });
+  },
+
+  async getCategories() {
+    if (!CURRENT_USER_ID) return { data: [] };
+    return apiFetch(`/categories?user_id=${CURRENT_USER_ID}`);
+  },
+
+  async addCategory(name, color) {
+    return apiFetch('/categories', {
+      method: 'POST',
+      body: JSON.stringify({ user_id: CURRENT_USER_ID, name, color })
+    });
+  },
+
+  async deleteCategory(name) {
+    return apiFetch(`/categories/${encodeURIComponent(name)}?user_id=${CURRENT_USER_ID}`, {
+      method: 'DELETE'
+    });
   }
 };
 

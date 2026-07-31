@@ -134,7 +134,7 @@ async function sendLoginCode() {
     btn.disabled = true;
     btn.textContent = 'Enviando...';
     try {
-        const res = await fetch('http://localhost:3000/api/auth/send-code', {
+        const res = await fetch(window.API_URL + '/auth/send-code', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email })
@@ -168,7 +168,7 @@ async function verifyLoginCode() {
     btn.disabled = true;
     btn.textContent = 'Verificando...';
     try {
-        const res = await fetch('http://localhost:3000/api/auth/verify-code', {
+        const res = await fetch(window.API_URL + '/auth/verify-code', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email, code })
@@ -1785,6 +1785,8 @@ function loadDataAndCharts() {
         if (charts && typeof charts.updateHistoryChart === 'function') {
             charts.updateHistoryChart(currentTransactions);
         }
+        loadCategories().catch(() => {});
+        checkBudgetAlerts().catch(() => {});
     });
 }
 
@@ -1809,6 +1811,167 @@ document.addEventListener('DOMContentLoaded', function () {
         renderGoogleButton();
     }
 });
+
+// --- CATEGORÍAS PERSONALIZADAS ---
+
+const DEFAULT_CATEGORIES = ['Mercado', 'Bancos', 'Entretenimiento', 'Transporte', 'Salud', 'Hogar', 'Mensualidades', 'Comida', 'Servicios'];
+
+const CATEGORY_PALETTE = [
+    'rgb(255, 159, 64)',
+    'rgb(54, 162, 235)',
+    'rgb(153, 102, 255)',
+    'rgb(86, 249, 255)',
+    'rgb(246, 134, 158)',
+    'rgb(190, 56, 137)',
+    'rgb(246, 255, 0)',
+    'rgb(34, 197, 94)',
+    'rgb(249, 115, 22)'
+];
+
+async function loadCategories() {
+    if (!currentUser) return;
+    const res = await api.getCategories();
+    const customCategories = (res.data || []).map(c => ({ name: c.name, color: c.color }));
+
+    if (typeof FinanceCharts !== 'undefined') {
+        const colors = {};
+        customCategories.forEach((c, i) => {
+            colors[c.name] = c.color || CATEGORY_PALETTE[i % CATEGORY_PALETTE.length];
+        });
+        FinanceCharts.registerCategoryColors(colors);
+    }
+
+    const all = [...DEFAULT_CATEGORIES, ...customCategories.map(c => c.name)];
+    populateCategorySelects(all);
+    renderCategoriesList(customCategories);
+}
+
+function populateCategorySelects(categories) {
+    const selectIds = ['category', 'filterCategory', 'historyCategory', 'budgetCategory', 'categoryModalSelect', 'editCategory'];
+    selectIds.forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const current = el.value;
+        const isHistory = id === 'historyCategory';
+        el.innerHTML = '';
+        if (isHistory) {
+            el.innerHTML = '<option value="all">Todos los gastos</option><option value="income">Ingresos</option>';
+        } else {
+            const opt = document.createElement('option');
+            opt.value = '';
+            opt.textContent = id === 'filterCategory' ? 'Todas' : id === 'budgetCategory' ? 'Categoría' : 'Selecciona una categoría';
+            el.appendChild(opt);
+        }
+        categories.forEach(cat => {
+            const opt = document.createElement('option');
+            opt.value = cat;
+            opt.textContent = cat;
+            el.appendChild(opt);
+        });
+        if (current && (current === 'all' || current === 'income' || categories.includes(current))) {
+            el.value = current;
+        }
+    });
+}
+
+function renderCategoriesList(customCategories) {
+    const container = document.getElementById('categoriesList');
+    const empty = document.getElementById('categoriesEmpty');
+    if (!container) return;
+
+    if (!customCategories || customCategories.length === 0) {
+        container.innerHTML = '';
+        if (empty) empty.classList.remove('hidden');
+        return;
+    }
+    if (empty) empty.classList.add('hidden');
+    container.innerHTML = customCategories.map(c => `
+        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+            <div class="flex items-center gap-3">
+                <span class="inline-block w-4 h-4 rounded-full" style="background:${c.color || '#94a3b8'}"></span>
+                <span class="font-medium">${c.name}</span>
+            </div>
+            <button onclick="deleteCustomCategory('${c.name.replace(/'/g, "\\'")}')" class="text-red-500 hover:text-red-700 text-sm">Eliminar</button>
+        </div>
+    `).join('');
+}
+
+async function addCustomCategory(e) {
+    e.preventDefault();
+    const nameEl = document.getElementById('newCategoryName');
+    const colorEl = document.getElementById('newCategoryColor');
+    const name = nameEl.value.trim();
+    if (!name) {
+        showInfoModal('Error', 'Escribe el nombre de la categoría.');
+        return;
+    }
+    if (DEFAULT_CATEGORIES.includes(name)) {
+        showInfoModal('Error', 'Esa categoría ya existe por defecto.');
+        return;
+    }
+    const color = colorEl.value || null;
+    try {
+        await api.addCategory(name, color);
+        nameEl.value = '';
+        await loadCategories();
+        showInfoModal('Éxito', 'Categoría agregada.');
+    } catch (err) {
+        console.error('Error adding category:', err);
+        showInfoModal('Error', 'Error al agregar la categoría: ' + err.message);
+    }
+}
+
+async function deleteCustomCategory(name) {
+    showConfirmationModal(
+        'Eliminar categoría',
+        `¿Eliminar la categoría "${name}"? Las transacciones existentes se conservan.`,
+        async () => {
+            document.getElementById('confirmationModal').style.display = 'none';
+            try {
+                await api.deleteCategory(name);
+                await loadCategories();
+                showInfoModal('Éxito', 'Categoría eliminada.');
+            } catch (err) {
+                console.error('Error deleting category:', err);
+                showInfoModal('Error', 'Error al eliminar la categoría: ' + err.message);
+            }
+        },
+        false
+    );
+}
+
+// --- NOTIFICACIONES DE PRESUPUESTO ---
+
+function requestNotificationPermission() {
+    if (!('Notification' in window)) return;
+    if (Notification.permission === 'default') {
+        Notification.requestPermission().catch(() => {});
+    }
+}
+
+async function checkBudgetAlerts() {
+    if (!currentUser || !currentUser.email) return;
+    requestNotificationPermission();
+    const res = await api.checkBudgetAlerts(currentUser.email);
+    const alerts = res.alerts || [];
+    if (alerts.length === 0) return;
+
+    if ('Notification' in window && Notification.permission === 'granted') {
+        const summary = alerts
+            .map(a => `${a.category}: ${Math.round(a.pct)}% (${formatCOP(a.spent)} de ${formatCOP(a.limit)})`)
+            .join('\n');
+        try {
+            const reg = await navigator.serviceWorker.ready;
+            reg.showNotification('Alertas de presupuesto', {
+                body: summary,
+                icon: 'icons/icon-192.png',
+                badge: 'icons/icon-192.png'
+            });
+        } catch {
+            new Notification('Alertas de presupuesto', { body: summary, icon: 'icons/icon-192.png' });
+        }
+    }
+}
 
 // --- PRESUPUESTOS ---
 

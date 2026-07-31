@@ -75,6 +75,10 @@ class FinanceCharts {
         'Sin categoría': 'rgb(148, 163, 184)'
     };
 
+    static registerCategoryColors(colors) {
+        if (colors) Object.assign(this.categoryColors, colors);
+    }
+
     updateLegend(categoryLabels) {
         const legendEl = document.getElementById('categoryLegend');
         if (!legendEl) return;

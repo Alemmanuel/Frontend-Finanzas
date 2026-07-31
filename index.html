@@ -849,6 +849,18 @@
               Editar
             </button>
           </div>
+
+          <div class="p-4 bg-gray-50 rounded-lg">
+            <p class="font-semibold mb-1">Categorías personalizadas</p>
+            <p class="text-sm text-gray-500 mb-4">Crea tus propias categorías de gasto. Las transacciones existentes no se afectan al eliminarlas.</p>
+            <form class="flex flex-col sm:flex-row gap-3 mb-4" onsubmit="return addCustomCategory(event)">
+              <input type="text" id="newCategoryName" placeholder="Nombre de la categoría" class="flex-1 p-2 border rounded text-sm" maxlength="100" />
+              <input type="color" id="newCategoryColor" value="#10b981" class="h-10 w-16 rounded border p-1" title="Color de la categoría" />
+              <button type="submit" class="bg-emerald-500 text-white px-4 py-2 rounded hover:bg-emerald-600 text-sm whitespace-nowrap">Agregar</button>
+            </form>
+            <p id="categoriesEmpty" class="text-sm text-gray-400">Aún no tienes categorías personalizadas.</p>
+            <div id="categoriesList" class="space-y-2"></div>
+          </div>
         </div>
       </div>
     </div>

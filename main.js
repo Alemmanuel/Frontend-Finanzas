@@ -1487,6 +1487,9 @@ document.getElementById('transactionForm').addEventListener('submit', async (e) 
                 showInfoModal('Éxito', 'Transacción registrada exitosamente.');
                 loadTransactions();
                 e.target.reset();
+                if (tipo === 'Gasto') {
+                    checkBudgetAlerts().catch(() => {});
+                }
             } catch (error) {
                 console.error('Error adding transaction:', error);
                 showInfoModal('Error', 'Error al registrar la transacción: ' + error.message);

@@ -1787,6 +1787,7 @@ function loadDataAndCharts() {
         }
         loadCategories().catch(() => {});
         checkBudgetAlerts().catch(() => {});
+        loadNotificationSettings().catch(() => {});
     });
 }
 
@@ -1940,36 +1941,107 @@ async function deleteCustomCategory(name) {
     );
 }
 
-// --- NOTIFICACIONES DE PRESUPUESTO ---
+// --- NOTIFICACIONES PUSH ---
 
 function requestNotificationPermission() {
-    if (!('Notification' in window)) return;
+    if (!('Notification' in window)) return Promise.resolve('unsupported');
     if (Notification.permission === 'default') {
-        Notification.requestPermission().catch(() => {});
+        return Notification.requestPermission().catch(() => Notification.permission);
+    }
+    return Promise.resolve(Notification.permission);
+}
+
+function urlBase64ToUint8Array(base64String) {
+    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+    const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+    const rawData = window.atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+    for (let i = 0; i < rawData.length; ++i) {
+        outputArray[i] = rawData.charCodeAt(i);
+    }
+    return outputArray;
+}
+
+async function subscribeToPush() {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return false;
+    if (!currentUser) return false;
+    try {
+        const permission = await requestNotificationPermission();
+        if (permission !== 'granted') return false;
+
+        const keyRes = await fetch(window.API_URL + '/push/vapid-public-key');
+        if (!keyRes.ok) return false;
+        const keyData = await keyRes.json();
+
+        const reg = await navigator.serviceWorker.ready;
+        let subscription = await reg.pushManager.getSubscription();
+        if (!subscription) {
+            subscription = await reg.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: urlBase64ToUint8Array(keyData.publicKey)
+            });
+        }
+        await api.savePushSubscription(subscription);
+        return true;
+    } catch (err) {
+        console.error('Error subscribing to push:', err);
+        return false;
     }
 }
 
 async function checkBudgetAlerts() {
-    if (!currentUser || !currentUser.email) return;
-    requestNotificationPermission();
-    const res = await api.checkBudgetAlerts(currentUser.email);
-    const alerts = res.alerts || [];
-    if (alerts.length === 0) return;
-
-    if ('Notification' in window && Notification.permission === 'granted') {
-        const summary = alerts
-            .map(a => `${a.category}: ${Math.round(a.pct)}% (${formatCOP(a.spent)} de ${formatCOP(a.limit)})`)
-            .join('\n');
+    if (!currentUser) return;
+    if (currentUser.email) {
         try {
-            const reg = await navigator.serviceWorker.ready;
-            reg.showNotification('Alertas de presupuesto', {
-                body: summary,
-                icon: 'icons/icon-192.png',
-                badge: 'icons/icon-192.png'
-            });
-        } catch {
-            new Notification('Alertas de presupuesto', { body: summary, icon: 'icons/icon-192.png' });
+            await api.checkBudgetAlerts(currentUser.email);
+        } catch (err) {
+            console.error('Error checking budget alerts:', err);
         }
+    }
+    subscribeToPush();
+}
+
+// --- AJUSTES DE RECORDATORIOS ---
+
+const reminderKeys = { daily: 'daily_enabled', weekly: 'weekly_enabled', inactivity: 'inactivity_enabled' };
+
+function updateReminderSwitch(key, enabled) {
+    const sw = document.getElementById(key + 'ReminderSwitch');
+    const thumb = document.getElementById(key + 'ReminderThumb');
+    if (!sw) return;
+    sw.style.background = enabled ? '#059669' : '#d1d5db';
+    if (thumb) thumb.style.transform = enabled ? 'translateX(28px)' : 'translateX(0)';
+}
+
+async function loadNotificationSettings() {
+    if (!currentUser) return;
+    try {
+        const res = await api.getNotificationSettings();
+        const s = res.data || {};
+        Object.keys(reminderKeys).forEach(key => {
+            updateReminderSwitch(key, s[reminderKeys[key]] !== false);
+        });
+    } catch (err) {
+        console.error('Error loading notification settings:', err);
+    }
+}
+
+async function toggleReminder(key) {
+    if (!currentUser) return;
+    const sw = document.getElementById(key + 'ReminderSwitch');
+    if (!sw) return;
+    const enabled = sw.style.background !== 'rgb(5, 150, 105)';
+    updateReminderSwitch(key, enabled);
+    try {
+        const settings = {};
+        Object.keys(reminderKeys).forEach(k => {
+            settings[reminderKeys[k]] = k === key ? enabled : document.getElementById(k + 'ReminderSwitch')?.style.background === 'rgb(5, 150, 105)';
+        });
+        await api.saveNotificationSettings(settings);
+    } catch (err) {
+        console.error('Error saving notification settings:', err);
+        updateReminderSwitch(key, !enabled);
+        showInfoModal('Error', 'No se pudieron guardar los ajustes.');
     }
 }
 

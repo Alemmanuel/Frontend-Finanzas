@@ -96,6 +96,32 @@ const api = {
     return apiFetch(`/categories/${encodeURIComponent(name)}?user_id=${CURRENT_USER_ID}`, {
       method: 'DELETE'
     });
+  },
+
+  async savePushSubscription(subscription) {
+    return apiFetch('/push/subscribe', {
+      method: 'POST',
+      body: JSON.stringify({ user_id: CURRENT_USER_ID, subscription })
+    });
+  },
+
+  async deletePushSubscription(endpoint) {
+    return apiFetch('/push/subscribe', {
+      method: 'DELETE',
+      body: JSON.stringify({ user_id: CURRENT_USER_ID, endpoint })
+    });
+  },
+
+  async getNotificationSettings() {
+    if (!CURRENT_USER_ID) return { data: { daily_enabled: true, weekly_enabled: true, inactivity_enabled: true } };
+    return apiFetch(`/notification-settings?user_id=${CURRENT_USER_ID}`);
+  },
+
+  async saveNotificationSettings(settings) {
+    return apiFetch('/notification-settings', {
+      method: 'PUT',
+      body: JSON.stringify({ user_id: CURRENT_USER_ID, ...settings })
+    });
   }
 };
 

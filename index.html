@@ -851,6 +851,41 @@
           </div>
 
           <div class="p-4 bg-gray-50 rounded-lg">
+            <p class="font-semibold mb-1">Recordatorios</p>
+            <p class="text-sm text-gray-500 mb-4">Notificaciones amigables para que no se te olvide registrar tus gastos (hora de Colombia).</p>
+
+            <div class="flex items-center justify-between py-2 border-b border-gray-200">
+              <div>
+                <p class="font-medium">Recordatorio diario</p>
+                <p class="text-xs text-gray-500">Todos los días a las 8:00 PM</p>
+              </div>
+              <button onclick="toggleReminder('daily')" class="relative w-14 h-7 rounded-full transition-colors duration-200 focus:outline-none bg-gray-300" id="dailyReminderSwitch">
+                <div class="absolute left-1 top-1 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200" id="dailyReminderThumb"></div>
+              </button>
+            </div>
+
+            <div class="flex items-center justify-between py-2 border-b border-gray-200">
+              <div>
+                <p class="font-medium">Resumen semanal</p>
+                <p class="text-xs text-gray-500">Domingos a las 8:00 PM</p>
+              </div>
+              <button onclick="toggleReminder('weekly')" class="relative w-14 h-7 rounded-full transition-colors duration-200 focus:outline-none bg-gray-300" id="weeklyReminderSwitch">
+                <div class="absolute left-1 top-1 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200" id="weeklyReminderThumb"></div>
+              </button>
+            </div>
+
+            <div class="flex items-center justify-between py-2">
+              <div>
+                <p class="font-medium">Por inactividad</p>
+                <p class="text-xs text-gray-500">Si pasas 2 días sin registrar gastos</p>
+              </div>
+              <button onclick="toggleReminder('inactivity')" class="relative w-14 h-7 rounded-full transition-colors duration-200 focus:outline-none bg-gray-300" id="inactivityReminderSwitch">
+                <div class="absolute left-1 top-1 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200" id="inactivityReminderThumb"></div>
+              </button>
+            </div>
+          </div>
+
+          <div class="p-4 bg-gray-50 rounded-lg">
             <p class="font-semibold mb-1">Categorías personalizadas</p>
             <p class="text-sm text-gray-500 mb-4">Crea tus propias categorías de gasto. Las transacciones existentes no se afectan al eliminarlas.</p>
             <form class="flex flex-col sm:flex-row gap-3 mb-4" onsubmit="return addCustomCategory(event)">

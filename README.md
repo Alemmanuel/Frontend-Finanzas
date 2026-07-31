@@ -2,7 +2,6 @@
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Status](https://img.shields.io/badge/status-production%20ready-brightgreen.svg)
-![Version](https://img.shields.io/badge/version-2.0.0-informational.svg)
 ![Stack](https://img.shields.io/badge/stack-Node.js%20%7C%20Express%20%7C%20Vanilla%20JS-yellow.svg)
 ![Frontend](https://img.shields.io/badge/frontend-Vercel-black.svg)
 ![Backend](https://img.shields.io/badge/backend-Render-purple.svg)

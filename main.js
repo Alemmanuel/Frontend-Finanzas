@@ -1789,6 +1789,9 @@ function loadDataAndCharts() {
 }
 
 document.addEventListener('DOMContentLoaded', function () {
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('sw.js').catch(err => console.error('SW registration error:', err));
+    }
     applyDarkModePreference();
     if (localStorage.getItem('sidebarCollapsed') === 'true') {
         document.documentElement.classList.add('sidebar-collapsed');
